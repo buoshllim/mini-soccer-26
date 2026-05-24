@@ -185,6 +185,9 @@ export default class SoccerServer implements Party.Server {
       }
     }
 
+    // AI movement
+    this.tickAI(state)
+
     // Ball physics
     tickBallPhysics(state.ball)
 
@@ -288,6 +291,18 @@ export default class SoccerServer implements Party.Server {
         this.tickInterval = null
       }
       this.broadcast({ type: 'state', state: this.state })
+    }
+  }
+
+  private tickAI(state: GameState): void {
+    for (const player of state.players) {
+      if (player.isControlled) continue  // Human controls this player
+
+      if (player.role === 'gk') {
+        tickGKAI(state, player)
+      } else {
+        tickFieldAI(state, player)
+      }
     }
   }
 
@@ -653,6 +668,176 @@ function tickBallPhysics(ball: Ball): void {
   if (ball.pos.x > FIELD.W - br) { ball.pos.x = FIELD.W - br; ball.vel.x = -Math.abs(ball.vel.x) * 0.7 }
   if (ball.pos.y < br) { ball.pos.y = br; ball.vel.y = Math.abs(ball.vel.y) * 0.7 }
   if (ball.pos.y > FIELD.H - br) { ball.pos.y = FIELD.H - br; ball.vel.y = -Math.abs(ball.vel.y) * 0.7 }
+}
+
+function tickGKAI(state: GameState, gk: Player): void {
+  const { ball } = state
+  const goalX = gk.team === 'home' ? 4 : FIELD.W - 4
+  const isRushing: boolean = (gk as any).__rushing === true
+
+  if (isRushing) {
+    const d = dist2d(gk.pos, { x: ball.pos.x, y: ball.pos.y })
+    if (d < 2.0) {
+      // GK reached ball area
+      if (isInPenaltyArea(ball.pos, gk.team)) {
+        if (ball.ownerId === null) {
+          // Catch ball
+          ball.ownerId = gk.id
+          gk.hasBall = true
+          gk.isControlled = true  // Transfer control to human player
+          ball.vel = { x: 0, y: 0, z: 0 }
+        } else {
+          // Tackle attacker
+          const attacker = state.players.find(p => p.id === ball.ownerId)
+          if (attacker && attacker.team !== gk.team) {
+            const success = Math.random() > 0.35
+            if (success) {
+              attacker.hasBall = false
+              ball.ownerId = null
+              const clearDir = gk.team === 'home' ? 1 : -1
+              ball.vel = {
+                x: clearDir * 15 + (Math.random() - 0.5) * 4,
+                y: (Math.random() - 0.5) * 8,
+                z: 4,
+              }
+            }
+          }
+        }
+      } else {
+        // Outside PA: clear the ball
+        if (ball.ownerId === null || ball.ownerId === gk.id) {
+          if (gk.hasBall) gk.hasBall = false
+          ball.ownerId = null
+          const clearDir = gk.team === 'home' ? 1 : -1
+          ball.vel = { x: clearDir * 18, y: (Math.random() - 0.5) * 6, z: 5 }
+        }
+      }
+      ;(gk as any).__rushing = false
+    } else {
+      // Move toward ball
+      const dir = norm2d({ x: ball.pos.x - gk.pos.x, y: ball.pos.y - gk.pos.y })
+      gk.pos.x += dir.x * PLAYER_SPEED * 1.3 * DT
+      gk.pos.y += dir.y * PLAYER_SPEED * 1.3 * DT
+      gk.facing = dir
+      gk.animState = 'run'
+      return
+    }
+  }
+
+  // Auto-rush: if free ball is close enough
+  const d = dist2d(gk.pos, { x: ball.pos.x, y: ball.pos.y })
+  if (d < FIELD.GK_RUSH_DIST && ball.ownerId === null && ball.pos.z < 2) {
+    ;(gk as any).__rushing = true
+    return
+  }
+
+  // Track ball laterally along goal line
+  const targetY = clamp(
+    ball.pos.y,
+    FIELD.CENTER_Y - FIELD.GOAL_WIDTH / 2 - 1,
+    FIELD.CENTER_Y + FIELD.GOAL_WIDTH / 2 + 1
+  )
+  const dy = targetY - gk.pos.y
+  if (Math.abs(dy) > 0.1) {
+    gk.pos.y += Math.sign(dy) * PLAYER_SPEED * 0.85 * DT
+    gk.animState = 'run'
+  } else {
+    gk.animState = 'idle'
+  }
+  // Always stay on goal line
+  gk.pos.x = goalX
+  gk.pos.y = clamp(gk.pos.y, FIELD.PLAYER_RADIUS, FIELD.H - FIELD.PLAYER_RADIUS)
+}
+
+function tickFieldAI(state: GameState, player: Player): void {
+  const { ball } = state
+  const isHomeSide = ball.pos.x > FIELD.CENTER_X
+  const teamAttacking = player.team === 'home' ? isHomeSide : !isHomeSide
+
+  let targetX: number
+  let targetY: number
+
+  // Stagger AI players to avoid piling up: offset by player index
+  const teammates = state.players.filter(p => p.team === player.team && p.role === player.role)
+  const idx = teammates.indexOf(player)
+  const yOffset = (idx - (teammates.length - 1) / 2) * 8  // spread vertically
+
+  switch (player.role) {
+    case 'fwd':
+      if (teamAttacking) {
+        // Chase ball if close enough, else position near opponent goal
+        const dBall = dist2d(player.pos, { x: ball.pos.x, y: ball.pos.y })
+        if (dBall < 15) {
+          targetX = ball.pos.x
+          targetY = ball.pos.y
+        } else {
+          targetX = player.team === 'home' ? 75 : 25
+          targetY = FIELD.CENTER_Y + yOffset
+        }
+      } else {
+        // Stay high (opponent half)
+        targetX = player.team === 'home' ? 68 : 32
+        targetY = FIELD.CENTER_Y + yOffset
+      }
+      break
+
+    case 'mid':
+      if (teamAttacking) {
+        targetX = clamp(ball.pos.x, player.team === 'home' ? 40 : 0, player.team === 'home' ? 80 : 60)
+        targetY = clamp(ball.pos.y, 10, 50) + yOffset * 0.5
+      } else {
+        targetX = player.team === 'home' ? 45 : 55
+        targetY = clamp(ball.pos.y, 10, 50) + yOffset * 0.5
+      }
+      break
+
+    case 'def':
+      if (teamAttacking) {
+        // Stay back
+        targetX = player.team === 'home' ? 28 : 72
+        targetY = FIELD.CENTER_Y + yOffset
+      } else {
+        // Get between ball and own goal
+        const goalX = player.team === 'home' ? 4 : FIELD.W - 4
+        targetX = clamp(ball.pos.x, goalX + 8, FIELD.CENTER_X + (player.team === 'home' ? -5 : 5))
+        targetY = clamp(ball.pos.y, 8, 52) + yOffset * 0.5
+      }
+      break
+
+    default:
+      return
+  }
+
+  // Move toward target
+  const target = { x: targetX, y: targetY }
+  const d = dist2d(player.pos, target)
+  if (d > 0.5) {
+    const dir = norm2d({ x: target.x - player.pos.x, y: target.y - player.pos.y })
+    player.pos.x += dir.x * PLAYER_SPEED * 0.85 * DT
+    player.pos.y += dir.y * PLAYER_SPEED * 0.85 * DT
+    player.facing = dir
+    player.animState = 'run'
+  } else {
+    player.animState = 'idle'
+  }
+
+  // Keep in field
+  player.pos.x = clamp(player.pos.x, FIELD.PLAYER_RADIUS, FIELD.W - FIELD.PLAYER_RADIUS)
+  player.pos.y = clamp(player.pos.y, FIELD.PLAYER_RADIUS, FIELD.H - FIELD.PLAYER_RADIUS)
+
+  // Auto-tackle: if near ball carrier from opponent team
+  const carrier = state.players.find(p => p.id === ball.ownerId)
+  if (carrier && carrier.team !== player.team) {
+    const dCarrier = dist2d(player.pos, carrier.pos)
+    if (dCarrier < FIELD.TACKLE_DIST) {
+      const success = Math.random() > 0.72  // 28% chance per tick = ~1.4 per second
+      if (success) {
+        carrier.hasBall = false
+        ball.ownerId = null
+        ball.vel = { x: player.facing.x * 6, y: player.facing.y * 6, z: 0 }
+      }
+    }
+  }
 }
 
 function buildPlayers(
