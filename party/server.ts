@@ -189,6 +189,29 @@ export default class SoccerServer implements Party.Server {
 
       tickPlayerMovement(player, input)
 
+      // Ball shielding: dribbling player moving away from opponent
+      if (player.hasBall && input && (input.dx !== 0 || input.dy !== 0)) {
+        const nearby = state.players.filter(p => p.team !== player.team && dist2d(p.pos, player.pos) < 2)
+        if (nearby.length > 0) {
+          const opp = nearby[0]
+          const toOpp = norm2d({ x: opp.pos.x - player.pos.x, y: opp.pos.y - player.pos.y })
+          const inputDir = norm2d({ x: input.dx, y: input.dy })
+          const dot = toOpp.x * inputDir.x + toOpp.y * inputDir.y
+          if (dot < -0.5) {
+            ;(player as any).__shielding = true
+            // Reduce movement speed while shielding
+            player.pos.x -= inputDir.x * PLAYER_SPEED * 0.4 * DT
+            player.pos.y -= inputDir.y * PLAYER_SPEED * 0.4 * DT
+          } else {
+            ;(player as any).__shielding = false
+          }
+        } else {
+          ;(player as any).__shielding = false
+        }
+      } else if (!player.hasBall) {
+        ;(player as any).__shielding = false
+      }
+
       // Process action input
       if (player.isControlled && input?.action) {
         if (player.hasBall) {
@@ -238,6 +261,35 @@ export default class SoccerServer implements Party.Server {
       }, 2000)
       this.broadcast({ type: 'state', state })
       return  // skip rest of tick
+    }
+
+    // Header: airborne ball descending within reach of a player
+    if (state.ball.pos.z > 2 && state.ball.vel.z < 0 && state.ball.ownerId === null) {
+      for (const player of state.players) {
+        if (dist2d(player.pos, { x: state.ball.pos.x, y: state.ball.pos.y }) < 2) {
+          const connId = [...this.assignments.entries()].find(([, t]) => t === player.team)?.[0]
+          const input = player.isControlled && connId ? (this.inputs.get(connId) ?? null) : null
+          const hasDir = input && (input.dx !== 0 || input.dy !== 0)
+          const dir = hasDir ? norm2d({ x: input!.dx, y: input!.dy }) : player.facing
+
+          if (player.role === 'gk' && isInPenaltyArea(player.pos, player.team)) {
+            // GK catches aerial ball in PA
+            state.ball.ownerId = player.id
+            player.hasBall = true
+            state.ball.vel = { x: 0, y: 0, z: 0 }
+            for (const p of state.players) {
+              if (p.team === player.team) p.isControlled = false
+            }
+            player.isControlled = true
+          } else {
+            // Outfield header
+            state.ball.vel = { x: dir.x * 14, y: dir.y * 14, z: 6 }
+            state.ball.ownerId = null
+            player.animState = 'kick'
+          }
+          break
+        }
+      }
     }
 
     // Out of bounds detection (only when ball is free and game is playing)
