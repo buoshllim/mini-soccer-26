@@ -22,6 +22,7 @@ export function mountHome(el: HTMLElement) {
         border-radius:10px;background:#16a34a;color:#fff;border:none;cursor:pointer;font-weight:bold">
         입장
       </button>
+      <p style="color:#555;font-size:12px;margin-top:20px">📱 모바일은 가로 모드로 플레이하세요</p>
     </div>`
 
   el.querySelector('#btn-create')!.addEventListener('click', () => {
