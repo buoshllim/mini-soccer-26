@@ -1,75 +1,47 @@
 export type Vec2 = { x: number; y: number }
-export type Vec3 = { x: number; y: number; z: number }
 export type TeamColor = 'blue' | 'red' | 'green' | 'yellow'
-export type PlayerRole = 'gk' | 'fwd' | 'mid' | 'def'
+export type PlayerRole = 'gk' | 'df' | 'mf' | 'fw'
 
 export type Player = {
   id: string
   team: 'home' | 'away'
   role: PlayerRole
   pos: Vec2
-  facing: Vec2          // normalized direction vector
-  stamina: number       // 0~1
+  vel: Vec2           // current velocity (units/sec), used for collision
+  facing: Vec2        // normalized direction
   isControlled: boolean
-  hasBall: boolean
-  jerseyNumber: number  // 1~99
-  animState: 'idle' | 'run' | 'kick' | 'tackle' | 'slide'
+  stunTimer: number   // seconds remaining; >0 = stumbled, ignores input
 }
 
 export type Ball = {
-  pos: Vec3
-  vel: Vec3
-  ownerId: string | null  // Player.id or null if free
-}
-
-export type Formation = {
-  slots: [number, number, number, number]  // exactly 4 grid indices, each 0~8
+  pos: Vec2           // 2D only — ball stays on ground
+  vel: Vec2
+  ownerId: string | null
 }
 
 export type LobbyState = {
-  home: { color: TeamColor | null; formation: Formation | null; jerseyNumbers: [number, number, number, number, number]; ready: boolean } | null
-  away: { color: TeamColor | null; formation: Formation | null; jerseyNumbers: [number, number, number, number, number]; ready: boolean } | null
+  home: { color: TeamColor | null; ready: boolean } | null
+  away: { color: TeamColor | null; ready: boolean } | null
 }
 
-export type SetpieceState = {
-  type: 'freekick' | 'penalty' | 'corner' | 'throwin' | 'goalkick'
-  team: 'home' | 'away'
-  pos: Vec2
-}
-
-export type GameStats = {
-  possession: { home: number; away: number }   // cumulative ticks ball owned
-  shots: { home: number; away: number }
-  shotsOnTarget: { home: number; away: number }
-}
-
-export type GamePhase =
-  | 'lobby' | 'countdown' | 'kickoff' | 'playing'
-  | 'freekick' | 'penalty' | 'corner' | 'throwin' | 'goalkick'
-  | 'halftime' | 'ended'
+export type GamePhase = 'lobby' | 'countdown' | 'playing' | 'halftime' | 'ended'
 
 export type GameState = {
   players: Player[]
   ball: Ball
   score: { home: number; away: number }
-  timeLeft: number      // seconds, counts down
+  timeLeft: number
   half: 1 | 2
   phase: GamePhase
-  kickoffTeam: 'home' | 'away' | null
-  setpiece?: SetpieceState
   lobby?: LobbyState
-  stats: GameStats
-  countdown?: number    // 3, 2, 1 when phase === 'countdown'
+  stats: { possession: { home: number; away: number }; shots: { home: number; away: number } }
+  countdown?: number
 }
 
 export type PlayerInput = {
-  dx: number            // -1, 0, 1
-  dy: number            // -1, 0, 1
-  sprint: boolean
-  switchPlayer: boolean
-  action: 'shoot' | 'chipshot' | 'lowpass' | 'loftedpass' | 'throughpass'
-        | 'tackle' | 'slidetackle' | 'gkrush' | null
-  power: number         // 0~1; server must clamp to [0, 1] before use
+  dx: number          // -1 to 1
+  dy: number          // -1 to 1
+  kickPower: number   // 0 = not kicking; 0.01–1 = released with this power
 }
 
 export type ServerMsg =
@@ -79,17 +51,20 @@ export type ServerMsg =
 
 export type ClientMsg =
   | { type: 'input'; input: PlayerInput }
-  | { type: 'lobby'; color?: TeamColor; jerseyNumbers?: [number, number, number, number, number]; formation?: Formation; ready?: boolean }
+  | { type: 'lobby'; color?: TeamColor; ready?: boolean }
 
-// Field constants (game units)
 export const FIELD = {
   W: 100, H: 60,
   GOAL_WIDTH: 12,
-  PA_DEPTH: 16, PA_HALF_WIDTH: 18,  // penalty area
+  PA_DEPTH: 16, PA_HALF_WIDTH: 18,
   CENTER_X: 50, CENTER_Y: 30,
-  PLAYER_RADIUS: 1,
-  BALL_RADIUS: 0.5,
-  DRIBBLE_ATTACH_DIST: 1.5,
-  TACKLE_DIST: 2,
-  GK_RUSH_DIST: 8,
+  PLAYER_RADIUS: 1.2,
+  BALL_RADIUS: 0.7,
+  BALL_SLOW_SPEED: 4,        // below this → dribble-attach
+  KICK_MIN_SPEED: 14,
+  KICK_MAX_SPEED: 42,
+  STUN_DURATION: 0.55,       // seconds after hard collision
+  STUN_SPEED_THRESHOLD: 6,   // relative speed (units/sec) to cause stun
+  GK_HOME_X: 4,
+  GK_AWAY_X: 96,
 } as const

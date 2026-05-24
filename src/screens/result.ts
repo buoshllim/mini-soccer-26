@@ -27,7 +27,7 @@ export function mountResult(el: HTMLElement, state: GameState) {
           <span>슈팅</span><span>${stats.shots.home} / ${stats.shots.away}</span>
         </div>
         <div style="display:flex;justify-content:space-between">
-          <span>유효슈팅</span><span>${stats.shotsOnTarget.home} / ${stats.shotsOnTarget.away}</span>
+          <span>슈팅</span><span>${stats.shots.home} / ${stats.shots.away}</span>
         </div>
       </div>
 

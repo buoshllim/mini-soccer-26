@@ -13,7 +13,6 @@ let animFrameId: number | null = null
 const playerMeshes = new Map<string, THREE.Group>()
 let ballMesh: THREE.Mesh | null = null
 let latestState: GameState | null = null
-let indicatorMesh: THREE.Mesh | null = null
 let rendererMyTeam: 'home' | 'away' | null = null
 
 // Team colors (lobby color → hex)
@@ -43,7 +42,6 @@ export function startGame(initialState: GameState): void {
   buildLighting()
   buildField()
   buildBall()
-  buildIndicator()
   syncPlayers(initialState)
 
   window.addEventListener('resize', onResize)
@@ -61,7 +59,6 @@ export function stopGame(): void {
   playerMeshes.clear()
   if (ballMesh && scene) scene.remove(ballMesh)
   ballMesh = null
-  if (indicatorMesh && scene) { scene.remove(indicatorMesh); indicatorMesh = null }
   rendererMyTeam = null
   if (renderer) renderer.dispose()
   renderer = null
@@ -286,16 +283,6 @@ function buildBall(): void {
   scene.add(ballMesh)
 }
 
-function buildIndicator(): void {
-  if (!scene) return
-  const geo = new THREE.ConeGeometry(0.45, 1.4, 4)
-  geo.rotateX(Math.PI)  // point downward
-  const mat = new THREE.MeshBasicMaterial({ color: 0x00ff88 })
-  indicatorMesh = new THREE.Mesh(geo, mat)
-  indicatorMesh.visible = false
-  scene.add(indicatorMesh)
-}
-
 // ─── Character building ───────────────────────────────────────────────────────
 
 function buildPlayerMesh(color: number, isGK = false): THREE.Group {
@@ -383,6 +370,11 @@ function syncPlayers(state: GameState): void {
     // Rotate player to face direction
     const angle = Math.atan2(player.facing.y, player.facing.x)
     mesh.rotation.z = angle - Math.PI / 2  // -90° because model faces +Y by default
+
+    // Stumble tilt when stunned
+    const stuntFraction = Math.min(player.stunTimer / FIELD.STUN_DURATION, 1)
+    mesh.rotation.x = stuntFraction * 0.7
+    mesh.rotation.y = stuntFraction * (Math.sin(Date.now() * 0.015) * 0.5)
   }
 
   // Remove meshes for players no longer in state
@@ -392,28 +384,12 @@ function syncPlayers(state: GameState): void {
       playerMeshes.delete(id)
     }
   }
-
-  // Indicator above controlled player — always visible
-  if (indicatorMesh) {
-    const myControlled = rendererMyTeam
-      ? state.players.find(p => p.team === rendererMyTeam && p.isControlled)
-      : null
-
-    if (myControlled) {
-      const [ix, iy] = gameToWorld(myControlled.pos.x, myControlled.pos.y)
-      indicatorMesh.position.set(ix, iy, 7)
-      indicatorMesh.visible = true
-    } else {
-      indicatorMesh.visible = false
-    }
-  }
 }
 
 function syncBall(state: GameState): void {
   if (!ballMesh) return
   const [wx, wy] = gameToWorld(state.ball.pos.x, state.ball.pos.y)
-  // Ball z: game z maps to world z (ball can be airborne)
-  ballMesh.position.set(wx, wy, state.ball.pos.z * 0.7 + 0.5)
+  ballMesh.position.set(wx, wy, 0.7)  // fixed height, no z-axis
 }
 
 // ─── Render loop ──────────────────────────────────────────────────────────────

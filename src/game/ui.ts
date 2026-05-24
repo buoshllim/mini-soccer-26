@@ -153,36 +153,12 @@ function drawConfetti() {
 
 function drawKeyHints() {
   if (!ctx || !canvas) return
-  const hints = [
-    ['↑↓←→/WASD', '이동'],
-    ['Space', '슛'],
-    ['C', '패스'],
-    ['X', '로프트 패스'],
-    ['Z', '스루 / GK 돌진'],
-    ['Tab', '선수 교체(수비)'],
-    ['Shift', '달리기'],
-  ]
-  const lineH = 18
-  const padX = 10
-  const padY = 8
-  const panelW = 185
-  const panelH = hints.length * lineH + padY * 2
-  const px = 12
-  const py = canvas.height - panelH - 12
-
   ctx.save()
-  ctx.fillStyle = 'rgba(0,0,0,0.62)'
-  ctx.fillRect(px, py, panelW, panelH)
-
-  hints.forEach(([key, label], i) => {
-    const ty = py + padY + lineH * i + 12
-    ctx.font = 'bold 10px monospace'
-    ctx.textAlign = 'left'
-    ctx.fillStyle = '#ffd700'
-    ctx.fillText(`[${key}]`, px + padX, ty)
-    ctx.font = '10px sans-serif'
-    ctx.fillStyle = '#bbb'
-    ctx.fillText(label, px + padX + 100, ty)
-  })
+  ctx.fillStyle = 'rgba(0,0,0,0.55)'
+  ctx.fillRect(10, canvas.height - 34, 190, 26)
+  ctx.font = 'bold 11px monospace'
+  ctx.fillStyle = '#ffd700'
+  ctx.textAlign = 'left'
+  ctx.fillText('[Space] 킥  꾹 누르면 강슛', 18, canvas.height - 17)
   ctx.restore()
 }

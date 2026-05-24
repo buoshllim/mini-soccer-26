@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 import PartySocket from 'partysocket'
-import type { GameState, ServerMsg, ClientMsg, PlayerInput, TeamColor, Formation } from './types'
+import type { GameState, ServerMsg, ClientMsg, PlayerInput, TeamColor } from './types'
 import { mountHome } from './screens/home'
 import { mountLobby, resetLobbyLocalState } from './screens/lobby'
 import { mountResult, setResultRoomId } from './screens/result'
@@ -48,6 +48,7 @@ export function joinRoom(roomId: string) {
     const msg: ServerMsg = JSON.parse(e.data)
     if (msg.type === 'assigned') {
       myTeam = msg.team
+      ;(window as any).__myTeam = msg.team
       setRendererTeam(msg.team)
     } else if (msg.type === 'state') {
       onStateUpdate(msg.state)
@@ -70,7 +71,7 @@ export function sendInput(input: PlayerInput) {
   socket.send(JSON.stringify(msg))
 }
 
-export function sendLobby(payload: { color?: TeamColor; jerseyNumbers?: [number, number, number, number, number]; formation?: Formation; ready?: boolean }) {
+export function sendLobby(payload: { color?: TeamColor; ready?: boolean }) {
   if (!socket) return
   const msg: ClientMsg = { type: 'lobby', ...payload }
   socket.send(JSON.stringify(msg))
@@ -250,19 +251,14 @@ function onStateUpdate(state: GameState) {
     mountResult(screenEl, state)
   } else if (state.phase === 'halftime') {
     showHalftimeOverlay(state)
-  } else {
-    // Playing phases: kickoff, playing, freekick, penalty, corner, throwin, goalkick
+  } else if (state.phase === 'playing') {
     screenEl.classList.add('hidden')
     if (!gameActive) {
+      playWhistle()
       startGame(state)
       if (myTeam) initHUD(myTeam)
       initInput()
       gameActive = true
-    }
-    // Whistle on every kickoff
-    if (state.phase === 'kickoff' && prevPhase !== 'kickoff') {
-      playWhistle()
-      showKickoffOverlay()
     }
   }
 }
@@ -278,7 +274,6 @@ function showHalftimeOverlay(state: GameState) {
       <div style="margin-top:16px;font-size:14px;color:#aaa;line-height:2">
         <div>점유율 ${homePoss}% / ${100 - homePoss}%</div>
         <div>슈팅 ${stats.shots.home} / ${stats.shots.away}</div>
-        <div>유효슈팅 ${stats.shotsOnTarget.home} / ${stats.shotsOnTarget.away}</div>
       </div>
       <p style="margin-top:20px;font-size:13px;color:#666">후반전 자동 시작...</p>
     </div>`
