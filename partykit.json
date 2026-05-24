@@ -1,4 +1,5 @@
 {
   "name": "soccer-game",
-  "main": "party/server.ts"
+  "main": "party/server.ts",
+  "compatibilityDate": "2026-05-24"
 }

@@ -10,7 +10,7 @@ import { initInput, destroyInput } from './game/input'
 
 const PARTY_HOST = import.meta.env.DEV
   ? 'localhost:1999'
-  : 'soccer-game.YOUR_USERNAME.partykit.dev'
+  : 'soccer-game.buoshllim.partykit.dev'
 
 let socket: PartySocket | null = null
 let myTeam: 'home' | 'away' | null = null
