@@ -3,7 +3,7 @@ import PartySocket from 'partysocket'
 import type { GameState, ServerMsg, ClientMsg, PlayerInput, TeamColor, Formation } from './types'
 import { mountHome } from './screens/home'
 import { mountLobby } from './screens/lobby'
-import { mountResult } from './screens/result'
+import { mountResult, setResultRoomId } from './screens/result'
 import { startGame, stopGame, updateGameState } from './game/renderer'
 import { initHUD, destroyHUD, updateHUDState } from './game/ui'
 import { initInput, destroyInput } from './game/input'
@@ -23,6 +23,7 @@ export function getCurrentRoomId() { return currentRoomId }
 
 export function joinRoom(roomId: string) {
   currentRoomId = roomId
+  setResultRoomId(roomId)
   if (socket) socket.close()
 
   socket = new PartySocket({ host: PARTY_HOST, room: roomId })
