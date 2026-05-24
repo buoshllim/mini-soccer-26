@@ -11,8 +11,7 @@ export function mountResult(el: HTMLElement, state: GameState) {
   const { score, stats } = state
   const winner = score.home > score.away ? '홈 팀 승리!' : score.away > score.home ? '어웨이 팀 승리!' : '무승부!'
 
-  const totalTicks = stats.possession.home + stats.possession.away
-  const homePoss = totalTicks > 0 ? Math.round((stats.possession.home / totalTicks) * 100) : 50
+  const homePoss = Math.round((stats.possession.home / (stats.possession.home + stats.possession.away + 1)) * 100)
   const awayPoss = 100 - homePoss
 
   el.innerHTML = `
