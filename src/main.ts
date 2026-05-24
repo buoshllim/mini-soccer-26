@@ -2,7 +2,7 @@
 import PartySocket from 'partysocket'
 import type { GameState, ServerMsg, ClientMsg, PlayerInput, TeamColor, Formation } from './types'
 import { mountHome } from './screens/home'
-import { mountLobby } from './screens/lobby'
+import { mountLobby, resetLobbyLocalState } from './screens/lobby'
 import { mountResult, setResultRoomId } from './screens/result'
 import { startGame, stopGame, updateGameState } from './game/renderer'
 import { initHUD, destroyHUD, updateHUDState } from './game/ui'
@@ -26,6 +26,7 @@ export function goHome() {
   activePhase = null; myTeam = null; currentRoomId = null
   stopGame(); destroyInput(); destroyHUD()
   gameActive = false
+  resetLobbyLocalState()
   screenEl.classList.remove('hidden')
   mountHome(screenEl)
 }
@@ -49,11 +50,11 @@ export function joinRoom(roomId: string) {
   }
 
   socket.onclose = () => {
-    // Connection closed — go back to home
     activePhase = null
     stopGame()
     destroyInput()
     destroyHUD()
+    resetLobbyLocalState()
     mountHome(screenEl)
     screenEl.classList.remove('hidden')
   }
@@ -65,7 +66,7 @@ export function sendInput(input: PlayerInput) {
   socket.send(JSON.stringify(msg))
 }
 
-export function sendLobby(payload: { color?: TeamColor; jerseyNumber?: number; formation?: Formation; ready?: boolean }) {
+export function sendLobby(payload: { color?: TeamColor; jerseyNumbers?: [number, number, number, number, number]; formation?: Formation; ready?: boolean }) {
   if (!socket) return
   const msg: ClientMsg = { type: 'lobby', ...payload }
   socket.send(JSON.stringify(msg))

@@ -27,8 +27,8 @@ export type Formation = {
 }
 
 export type LobbyState = {
-  home: { color: TeamColor | null; formation: Formation | null; jerseyNumber: number; ready: boolean } | null
-  away: { color: TeamColor | null; formation: Formation | null; jerseyNumber: number; ready: boolean } | null
+  home: { color: TeamColor | null; formation: Formation | null; jerseyNumbers: [number, number, number, number, number]; ready: boolean } | null
+  away: { color: TeamColor | null; formation: Formation | null; jerseyNumbers: [number, number, number, number, number]; ready: boolean } | null
 }
 
 export type SetpieceState = {
@@ -79,7 +79,7 @@ export type ServerMsg =
 
 export type ClientMsg =
   | { type: 'input'; input: PlayerInput }
-  | { type: 'lobby'; color?: TeamColor; jerseyNumber?: number; formation?: Formation; ready?: boolean }
+  | { type: 'lobby'; color?: TeamColor; jerseyNumbers?: [number, number, number, number, number]; formation?: Formation; ready?: boolean }
 
 // Field constants (game units)
 export const FIELD = {

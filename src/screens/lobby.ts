@@ -1,5 +1,31 @@
-import type { GameState, TeamColor, Formation } from '../types'
-import { sendLobby, getCurrentRoomId } from '../main'
+import type { GameState, TeamColor } from '../types'
+import { sendLobby, getCurrentRoomId, getMyTeam } from '../main'
+
+let _color: TeamColor | null = null
+let _slots: number[] = []
+let _jerseys: number[] = []
+let _gkJersey = rnd()
+
+export function resetLobbyLocalState() {
+  _color = null
+  _slots = []
+  _jerseys = []
+  _gkJersey = rnd()
+}
+
+function rnd() { return Math.floor(Math.random() * 99) + 1 }
+
+function buildJerseyNumbers(): [number, number, number, number, number] {
+  const j = [..._jerseys]
+  while (j.length < 4) j.push(rnd())
+  return [_gkJersey, j[0], j[1], j[2], j[3]]
+}
+
+const ROW_LABELS = ['FWD', 'FWD', 'FWD', 'MID', 'MID', 'MID', 'DEF', 'DEF', 'DEF']
+const COLOR_BG: Record<TeamColor, string> = {
+  blue: '#3b82f6', red: '#ef4444', green: '#16a34a', yellow: '#eab308',
+}
+const COLORS: TeamColor[] = ['blue', 'red', 'green', 'yellow']
 
 export function mountLobby(el: HTMLElement, state: GameState) {
   const lobby = state.lobby
@@ -24,106 +50,168 @@ export function mountLobby(el: HTMLElement, state: GameState) {
     return
   }
 
-  el.innerHTML = `
-    <div style="background:rgba(0,0,0,0.85);padding:32px;border-radius:12px;min-width:360px;max-width:480px">
-      <h2 style="text-align:center;margin-bottom:20px">로비</h2>
+  const myTeam = getMyTeam()
+  const oppTeam = myTeam === 'home' ? 'away' : 'home'
+  const myLobby = myTeam ? lobby[myTeam] : null
+  const oppLobby = myTeam ? lobby[oppTeam] : null
 
-      <div style="margin-bottom:16px">
-        <div style="font-size:12px;color:#888;margin-bottom:8px">팀 색상</div>
+  el.innerHTML = `
+    <div style="background:rgba(0,0,0,0.85);padding:24px 28px;border-radius:12px;min-width:360px;max-width:500px">
+      <h2 style="text-align:center;margin-bottom:16px">로비</h2>
+
+      <div style="margin-bottom:14px">
+        <div style="font-size:12px;color:#888;margin-bottom:6px">팀 색상</div>
         <div id="color-btns" style="display:flex;gap:8px">
-          ${(['blue','red','green','yellow'] as TeamColor[]).map(c =>
-            `<button data-color="${c}" style="flex:1;height:40px;border-radius:6px;border:2px solid transparent;
-             background:${{blue:'#3b82f6',red:'#ef4444',green:'#16a34a',yellow:'#eab308'}[c]};
-             cursor:pointer;opacity:${lobby.away?.color === c || lobby.home?.color === c ? '0.3' : '1'}">${c}</button>`
-          ).join('')}
+          ${COLORS.map(c => `
+            <button data-color="${c}" style="flex:1;height:36px;border-radius:6px;
+              border:2px solid ${_color === c ? '#fff' : 'transparent'};
+              background:${COLOR_BG[c]};cursor:pointer;font-size:12px;font-weight:bold;
+              opacity:${oppLobby?.color === c ? '0.25' : '1'}">
+              ${c[0].toUpperCase() + c.slice(1)}
+            </button>`).join('')}
         </div>
       </div>
 
-      <div style="margin-bottom:16px">
-        <div style="font-size:12px;color:#888;margin-bottom:8px">등번호</div>
-        <input id="jersey-input" type="number" min="1" max="99" value="10"
-          style="width:80px;padding:8px;font-size:18px;border-radius:6px;border:1px solid #444;background:#222;color:#fff"/>
-      </div>
-
-      <div style="margin-bottom:20px">
-        <div style="font-size:12px;color:#888;margin-bottom:8px">포메이션 (4개 선택)</div>
-        <div id="formation-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;max-width:200px;margin:0 auto">
-          ${[0,1,2,3,4,5,6,7,8].map(i => {
-            const rowLabel = ['FWD','FWD','FWD','MID','MID','MID','DEF','DEF','DEF'][i]
-            return `<button data-slot="${i}" style="height:44px;border-radius:8px;border:2px solid #444;
-              background:#1a1a2e;color:#888;font-size:11px;cursor:pointer">${rowLabel}</button>`
-          }).join('')}
+      <div style="display:flex;gap:14px;margin-bottom:16px;align-items:flex-start">
+        <div style="flex:1">
+          <div style="font-size:12px;color:#888;margin-bottom:6px">포메이션 (4개 선택)</div>
+          <div id="formation-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px"></div>
+        </div>
+        <div id="jersey-list" style="min-width:130px">
+          <div style="font-size:12px;color:#888;margin-bottom:6px">등번호</div>
         </div>
       </div>
 
       <div style="display:flex;justify-content:space-between;align-items:center">
-        <span id="opponent-status" style="font-size:13px;color:#888">상대 대기중...</span>
+        <span id="opponent-status" style="font-size:13px;color:#888">상대방 대기중...</span>
         <button id="ready-btn" disabled
-          style="padding:10px 24px;border-radius:8px;background:#6366f1;color:#fff;border:none;cursor:pointer;opacity:0.5">
+          style="padding:10px 24px;border-radius:8px;background:#6366f1;color:#fff;border:none;cursor:pointer;opacity:0.5;font-size:14px">
           Ready
         </button>
       </div>
-    </div>
-  `
+    </div>`
 
-  let selectedColor: TeamColor | null = null
-  let selectedSlots: number[] = []
-  let jerseyNumber = 10
+  function renderFormationGrid() {
+    const gridEl = el.querySelector<HTMLDivElement>('#formation-grid')!
+    gridEl.innerHTML = Array.from({ length: 9 }, (_, i) => {
+      const idx = _slots.indexOf(i)
+      const sel = idx >= 0
+      return `<button data-slot="${i}" style="height:40px;border-radius:6px;
+        border:2px solid ${sel ? '#3b82f6' : '#444'};
+        background:${sel ? '#1e3a5f' : '#1a1a2e'};
+        color:${sel ? '#93c5fd' : '#888'};font-size:11px;cursor:pointer;line-height:1.2">
+        ${sel ? `<b style="color:#60a5fa">${idx + 1}</b><br>` : ''}${ROW_LABELS[i]}
+      </button>`
+    }).join('')
 
-  const colorBtns = el.querySelectorAll<HTMLButtonElement>('[data-color]')
-  const slotBtns = el.querySelectorAll<HTMLButtonElement>('[data-slot]')
-  const jerseyInput = el.querySelector<HTMLInputElement>('#jersey-input')!
-  const readyBtn = el.querySelector<HTMLButtonElement>('#ready-btn')!
+    gridEl.querySelectorAll<HTMLButtonElement>('[data-slot]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const slot = parseInt(btn.dataset.slot!)
+        const idx = _slots.indexOf(slot)
+        if (idx >= 0) {
+          _slots.splice(idx, 1)
+          _jerseys.splice(idx, 1)
+        } else if (_slots.length < 4) {
+          _slots.push(slot)
+          _jerseys.push(rnd())
+        }
+        if (_slots.length === 4) {
+          sendLobby({
+            formation: { slots: _slots as [number, number, number, number] },
+            jerseyNumbers: buildJerseyNumbers(),
+          })
+        }
+        checkReady()
+        renderFormationGrid()
+        renderJerseyList()
+      })
+    })
+  }
 
-  jerseyInput.addEventListener('change', () => {
-    jerseyNumber = Math.max(1, Math.min(99, parseInt(jerseyInput.value) || 10))
-    jerseyInput.value = String(jerseyNumber)
-    sendLobby({ jerseyNumber })
-  })
+  function renderJerseyList() {
+    const listEl = el.querySelector<HTMLDivElement>('#jersey-list')!
+    listEl.innerHTML = `
+      <div style="font-size:12px;color:#888;margin-bottom:6px">등번호</div>
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px">
+        <span style="font-size:11px;color:#aaa;width:36px">GK</span>
+        <input data-gk type="number" min="1" max="99" value="${_gkJersey}"
+          style="width:52px;padding:3px 6px;border-radius:4px;border:1px solid #444;background:#222;color:#fff;font-size:13px"/>
+      </div>
+      ${_slots.map((slot, i) => `
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px">
+          <span style="font-size:11px;color:#aaa;width:36px">${ROW_LABELS[slot]}</span>
+          <input data-jidx="${i}" type="number" min="1" max="99" value="${_jerseys[i]}"
+            style="width:52px;padding:3px 6px;border-radius:4px;border:1px solid #444;background:#222;color:#fff;font-size:13px"/>
+        </div>`).join('')}`
 
-  colorBtns.forEach(btn => {
+    listEl.querySelector<HTMLInputElement>('[data-gk]')!.addEventListener('change', e => {
+      const v = Math.max(1, Math.min(99, parseInt((e.target as HTMLInputElement).value) || rnd()))
+      ;(e.target as HTMLInputElement).value = String(v)
+      _gkJersey = v
+      if (_slots.length === 4) sendLobby({ jerseyNumbers: buildJerseyNumbers() })
+    })
+
+    listEl.querySelectorAll<HTMLInputElement>('[data-jidx]').forEach(input => {
+      input.addEventListener('change', () => {
+        const i = parseInt(input.dataset.jidx!)
+        const v = Math.max(1, Math.min(99, parseInt(input.value) || rnd()))
+        input.value = String(v)
+        _jerseys[i] = v
+        if (_slots.length === 4) sendLobby({ jerseyNumbers: buildJerseyNumbers() })
+      })
+    })
+  }
+
+  function checkReady() {
+    const btn = el.querySelector<HTMLButtonElement>('#ready-btn')!
+    const ok = _color !== null && _slots.length === 4
+    if (!myLobby?.ready) {
+      btn.disabled = !ok
+      btn.style.opacity = ok ? '1' : '0.5'
+    }
+  }
+
+  // Color buttons
+  el.querySelectorAll<HTMLButtonElement>('[data-color]').forEach(btn => {
     btn.addEventListener('click', () => {
       const color = btn.dataset.color as TeamColor
-      selectedColor = color
-      colorBtns.forEach(b => (b.style.border = '2px solid transparent'))
-      btn.style.border = '2px solid #fff'
+      if (oppLobby?.color === color) return
+      _color = color
+      el.querySelectorAll<HTMLButtonElement>('[data-color]').forEach(b => {
+        b.style.border = `2px solid ${b.dataset.color === color ? '#fff' : 'transparent'}`
+      })
       sendLobby({ color })
       checkReady()
     })
   })
 
-  slotBtns.forEach(btn => {
-    btn.addEventListener('click', () => {
-      const slot = parseInt(btn.dataset.slot!)
-      if (selectedSlots.includes(slot)) {
-        selectedSlots = selectedSlots.filter(s => s !== slot)
-        btn.style.background = '#1a1a2e'
-        btn.style.color = '#888'
-      } else if (selectedSlots.length < 4) {
-        selectedSlots.push(slot)
-        btn.style.background = '#3b82f6'
-        btn.style.color = '#fff'
-      }
-      if (selectedSlots.length === 4) {
-        sendLobby({ formation: { slots: selectedSlots as [number, number, number, number] } })
-      }
-      checkReady()
-    })
-  })
-
-  readyBtn.addEventListener('click', () => {
+  // Ready button
+  el.querySelector<HTMLButtonElement>('#ready-btn')!.addEventListener('click', () => {
     sendLobby({ ready: true })
-    readyBtn.disabled = true
-    readyBtn.textContent = 'Waiting...'
+    const btn = el.querySelector<HTMLButtonElement>('#ready-btn')!
+    btn.disabled = true
+    btn.textContent = 'Waiting...'
   })
 
-  function checkReady() {
-    const ok = selectedColor !== null && selectedSlots.length === 4
-    readyBtn.disabled = !ok
-    readyBtn.style.opacity = ok ? '1' : '0.5'
+  // Opponent status
+  const statusEl = el.querySelector<HTMLSpanElement>('#opponent-status')!
+  if (oppLobby?.ready) {
+    statusEl.textContent = '상대방 준비 완료 ✓'
+    statusEl.style.color = '#22c55e'
   }
 
-  // Show countdown overlay
+  // Restore ready button if already submitted
+  if (myLobby?.ready) {
+    const btn = el.querySelector<HTMLButtonElement>('#ready-btn')!
+    btn.disabled = true
+    btn.textContent = 'Waiting...'
+    btn.style.opacity = '1'
+  }
+
+  renderFormationGrid()
+  renderJerseyList()
+  checkReady()
+
   if (state.phase === 'countdown' && state.countdown) {
     const overlay = document.createElement('div')
     overlay.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:80px;font-weight:bold;color:#fff'

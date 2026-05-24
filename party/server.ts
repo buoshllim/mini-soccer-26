@@ -71,9 +71,11 @@ export default class SoccerServer implements Party.Server {
   }
 
   private initLobby() {
+    const makeJerseys = (): [number, number, number, number, number] =>
+      [randomJersey(), randomJersey(), randomJersey(), randomJersey(), randomJersey()]
     this.state.lobby = {
-      home: { color: null, formation: null, jerseyNumber: randomJersey(), ready: false },
-      away: { color: null, formation: null, jerseyNumber: randomJersey(), ready: false },
+      home: { color: null, formation: null, jerseyNumbers: makeJerseys(), ready: false },
+      away: { color: null, formation: null, jerseyNumbers: makeJerseys(), ready: false },
     }
     this.broadcast({ type: 'state', state: this.state })
   }
@@ -87,7 +89,7 @@ export default class SoccerServer implements Party.Server {
     const slot = this.state.lobby[team]
     if (!slot) return
     if (msg.color !== undefined) slot.color = msg.color
-    if (msg.jerseyNumber !== undefined) slot.jerseyNumber = msg.jerseyNumber
+    if (msg.jerseyNumbers !== undefined) slot.jerseyNumbers = msg.jerseyNumbers
     if (msg.formation !== undefined) slot.formation = msg.formation
     if (msg.ready !== undefined) slot.ready = msg.ready
     this.broadcast({ type: 'state', state: this.state })
@@ -1020,13 +1022,10 @@ function buildPlayers(
     slotIdx: number,
     playerIdx: number,
     isHuman: boolean,
-    humanJersey: number
+    jersey: number
   ) => {
     const role = gridSlotToRole(slotIdx)
     const pos = gridSlotToStartPos(slotIdx, team)
-    const jersey = isHuman
-      ? humanJersey
-      : randomUniqueJersey(usedJerseys[team])
     usedJerseys[team].add(jersey)
 
     players.push({
@@ -1043,14 +1042,14 @@ function buildPlayers(
     })
   }
 
-  addGK('home', 1)
-  addGK('away', 1)
+  addGK('home', home.jerseyNumbers[0])
+  addGK('away', away.jerseyNumbers[0])
 
   home.formation!.slots.forEach((slotIdx, i) => {
-    addOutfielder('home', slotIdx, i, i === 0, home.jerseyNumber)
+    addOutfielder('home', slotIdx, i, i === 0, home.jerseyNumbers[i + 1])
   })
   away.formation!.slots.forEach((slotIdx, i) => {
-    addOutfielder('away', slotIdx, i, i === 0, away.jerseyNumber)
+    addOutfielder('away', slotIdx, i, i === 0, away.jerseyNumbers[i + 1])
   })
 
   return players
