@@ -33,7 +33,7 @@ export function mountHome(el: HTMLElement) {
   })
 
   codeInput.addEventListener('keydown', (e: KeyboardEvent) => {
-    if (e.key === 'Enter' && codeInput.value.length >= 4) {
+    if (e.key === 'Enter' && codeInput.value.length === 6) {
       joinRoom(codeInput.value.toUpperCase())
     }
   })
