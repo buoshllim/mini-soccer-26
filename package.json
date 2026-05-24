@@ -15,6 +15,7 @@
   "dependencies": {
     "nipplejs": "^1.0.3",
     "partykit": "^0.0.115",
+    "partysocket": "^1.1.19",
     "three": "^0.184.0"
   },
   "devDependencies": {
