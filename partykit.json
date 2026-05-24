@@ -1,0 +1,4 @@
+{
+  "name": "soccer-game",
+  "main": "party/server.ts"
+}
