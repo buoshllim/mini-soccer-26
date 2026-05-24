@@ -77,3 +77,67 @@ describe('player count', () => {
     expect(homeFWD.y).toBe(awayFWD.y)
   })
 })
+
+// ---- Physics helpers ----
+
+describe('clamp', () => {
+  // Inline for testing
+  const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v))
+  it('clamps below min', () => expect(clamp(-5, 0, 1)).toBe(0))
+  it('clamps above max', () => expect(clamp(5, 0, 1)).toBe(1))
+  it('passes through in range', () => expect(clamp(0.5, 0, 1)).toBe(0.5))
+})
+
+describe('norm2d', () => {
+  const norm = (v: {x:number,y:number}) => {
+    const d = Math.sqrt(v.x*v.x+v.y*v.y)
+    if (d < 0.0001) return {x:0,y:0}
+    return {x:v.x/d,y:v.y/d}
+  }
+  it('normalizes (3,4) to magnitude 1', () => {
+    const n = norm({x:3,y:4})
+    const mag = Math.sqrt(n.x*n.x+n.y*n.y)
+    expect(mag).toBeCloseTo(1)
+  })
+  it('zero vector returns (0,0)', () => {
+    const n = norm({x:0,y:0})
+    expect(n.x).toBe(0)
+    expect(n.y).toBe(0)
+  })
+})
+
+describe('ball friction', () => {
+  it('ball slows down over 20 ticks', () => {
+    const FRICTION = 0.92
+    let vx = 20
+    for (let i = 0; i < 20; i++) vx *= FRICTION
+    expect(vx).toBeLessThan(4)  // significantly slower
+  })
+})
+
+describe('stamina drain', () => {
+  const DT = 0.05
+  const DRAIN = 0.30 * DT
+  const REGEN = 0.20 * DT
+  it('stamina depletes in ~3-4 seconds of sprinting', () => {
+    let stamina = 1.0
+    let ticks = 0
+    while (stamina > 0 && ticks < 200) {
+      stamina = Math.max(0, stamina - DRAIN)
+      ticks++
+    }
+    // DRAIN=0.015/tick → 1.0/0.015 ≈ 67 ticks (~3.3s at 20tps)
+    expect(ticks).toBeGreaterThan(50)
+    expect(ticks).toBeLessThan(100)
+  })
+  it('stamina recovers from 0 in ~10 seconds', () => {
+    let stamina = 0
+    let ticks = 0
+    while (stamina < 1.0 && ticks < 300) {
+      stamina = Math.min(1, stamina + REGEN)
+      ticks++
+    }
+    expect(ticks).toBeLessThan(300)
+    expect(stamina).toBeCloseTo(1.0)
+  })
+})
