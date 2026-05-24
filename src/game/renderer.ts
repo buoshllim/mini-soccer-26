@@ -46,6 +46,8 @@ export function startGame(initialState: GameState): void {
 
   window.addEventListener('resize', onResize)
   window.addEventListener('wheel', onWheel, { passive: false })
+  window.addEventListener('touchstart', onTouchStart, { passive: true })
+  window.addEventListener('touchmove', onTouchMove, { passive: false })
   animFrameId = requestAnimationFrame(renderLoop)
 }
 
@@ -62,9 +64,12 @@ export function stopGame(): void {
   rendererMyTeam = null
   if (renderer) renderer.dispose()
   renderer = null
+  window.removeEventListener('touchstart', onTouchStart)
+  window.removeEventListener('touchmove', onTouchMove)
   scene = null
   camera = null
   latestState = null
+  lastRenderTime = 0
   window.removeEventListener('resize', onResize)
   window.removeEventListener('wheel', onWheel)
 }
@@ -270,15 +275,16 @@ function buildGoalNet(frontX: number, dir: number, goalHW: number, depth: number
 
 function buildBall(): void {
   if (!scene) return
-  const geo = new THREE.SphereGeometry(0.7, 16, 12)
-  const mat = new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 80, specular: 0x999999 })
+  // Matte white base — no shininess
+  const geo = new THREE.SphereGeometry(0.7, 20, 16)
+  const mat = new THREE.MeshLambertMaterial({ color: 0xeeeeee })
   ballMesh = new THREE.Mesh(geo, mat)
   ballMesh.castShadow = true
 
-  // Wireframe overlay for soccer ball look
-  const wireGeo = new THREE.SphereGeometry(0.73, 8, 6)
-  const wireMat = new THREE.MeshBasicMaterial({ color: 0x111111, wireframe: true, transparent: true, opacity: 0.55 })
-  ballMesh.add(new THREE.Mesh(wireGeo, wireMat))
+  // Soccer ball seam pattern — dodecahedron edges approximate pentagon patches
+  const seamGeo = new THREE.EdgesGeometry(new THREE.DodecahedronGeometry(0.73, 0))
+  const seamMat = new THREE.LineBasicMaterial({ color: 0x111111 })
+  ballMesh.add(new THREE.LineSegments(seamGeo, seamMat))
 
   scene.add(ballMesh)
 }
@@ -394,16 +400,40 @@ function syncBall(state: GameState): void {
 
 // ─── Render loop ──────────────────────────────────────────────────────────────
 
+let lastRenderTime = 0
+
 function renderLoop(): void {
   animFrameId = requestAnimationFrame(renderLoop)
   if (!renderer || !scene || !camera) return
 
+  const now = performance.now()
+  const dt = lastRenderTime ? Math.min((now - lastRenderTime) / 1000, 0.05) : 0.016
+  lastRenderTime = now
+
   if (latestState) {
     syncBall(latestState)
+    rollBall(latestState, dt)
     tickCamera(camera, latestState)
   }
 
   renderer.render(scene, camera)
+}
+
+function rollBall(state: GameState, dt: number): void {
+  if (!ballMesh || state.ball.ownerId !== null) return
+  const { vel } = state.ball
+  const speed = Math.sqrt(vel.x ** 2 + vel.y ** 2)
+  if (speed < 0.2) return
+
+  const radius = 0.7
+  const angle = (speed / radius) * dt
+  // Rotation axis: perpendicular to velocity direction in the XY ground plane
+  const axisX = -vel.y / speed
+  const axisY = vel.x / speed
+  const halfAngle = angle * 0.5
+  const sinH = Math.sin(halfAngle)
+  const q = new THREE.Quaternion(axisX * sinH, axisY * sinH, 0, Math.cos(halfAngle))
+  ballMesh.quaternion.multiply(q)
 }
 
 function onResize(): void {
@@ -418,4 +448,26 @@ function onWheel(e: WheelEvent): void {
   if (!camera) return
   camera.fov = Math.max(25, Math.min(80, camera.fov + (e.deltaY > 0 ? 4 : -4)))
   camera.updateProjectionMatrix()
+}
+
+let pinchDist0 = 0
+
+function getTouchDist(e: TouchEvent): number {
+  const dx = e.touches[0].clientX - e.touches[1].clientX
+  const dy = e.touches[0].clientY - e.touches[1].clientY
+  return Math.sqrt(dx * dx + dy * dy)
+}
+
+function onTouchStart(e: TouchEvent): void {
+  if (e.touches.length === 2) pinchDist0 = getTouchDist(e)
+}
+
+function onTouchMove(e: TouchEvent): void {
+  if (e.touches.length !== 2 || !camera || pinchDist0 === 0) return
+  e.preventDefault()
+  const dist = getTouchDist(e)
+  const delta = pinchDist0 - dist
+  camera.fov = Math.max(25, Math.min(80, camera.fov + delta * 0.05))
+  camera.updateProjectionMatrix()
+  pinchDist0 = dist
 }

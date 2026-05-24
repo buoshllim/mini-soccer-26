@@ -4,12 +4,14 @@ import { FIELD } from '../src/types'
 
 const TICK_MS = 50
 const DT = TICK_MS / 1000
-const FRICTION = 0.86
+const FRICTION = 0.95             // was 0.86 — ball rolls much further
+const WALL_BOUNCE = 0.92          // was 0.82 — very elastic walls
 const PLAYER_SPEED = 9
 const PLAYER_ACCEL = 0.25
 const GK_SPEED = 8
 const GK_RUSH_DIST = 14
-const BALL_PLAYER_RESTITUTION = 0.72
+const BALL_PLAYER_RESTITUTION = 0.88  // was 0.72 — bouncier player deflection
+const GOAL_FREEZE = 1.5           // seconds players are frozen after a goal
 
 export default class SoccerServer implements Party.Server {
   private state: GameState
@@ -144,11 +146,11 @@ export default class SoccerServer implements Party.Server {
       }
     }
 
-    // 2. Stun timers
+    // 2. Stun timers — light air friction only, preserve knockback momentum
     for (const p of state.players) {
       if (p.stunTimer > 0) {
         p.stunTimer = Math.max(0, p.stunTimer - DT)
-        p.vel.x *= 0.8; p.vel.y *= 0.8
+        p.vel.x *= 0.95; p.vel.y *= 0.95
         p.pos.x += p.vel.x * DT; p.pos.y += p.vel.y * DT
         clampToField(p)
       }
@@ -327,14 +329,14 @@ function bounceBall(state: GameState): void {
   const goalTop = FIELD.CENTER_Y - FIELD.GOAL_WIDTH / 2
   const goalBot = FIELD.CENTER_Y + FIELD.GOAL_WIDTH / 2
 
-  if (ball.pos.y < br) { ball.pos.y = br; ball.vel.y = Math.abs(ball.vel.y) * 0.82 }
-  if (ball.pos.y > FIELD.H - br) { ball.pos.y = FIELD.H - br; ball.vel.y = -Math.abs(ball.vel.y) * 0.82 }
+  if (ball.pos.y < br) { ball.pos.y = br; ball.vel.y = Math.abs(ball.vel.y) * WALL_BOUNCE }
+  if (ball.pos.y > FIELD.H - br) { ball.pos.y = FIELD.H - br; ball.vel.y = -Math.abs(ball.vel.y) * WALL_BOUNCE }
 
   if (ball.pos.x < br && !(ball.pos.y >= goalTop && ball.pos.y <= goalBot)) {
-    ball.pos.x = br; ball.vel.x = Math.abs(ball.vel.x) * 0.82
+    ball.pos.x = br; ball.vel.x = Math.abs(ball.vel.x) * WALL_BOUNCE
   }
   if (ball.pos.x > FIELD.W - br && !(ball.pos.y >= goalTop && ball.pos.y <= goalBot)) {
-    ball.pos.x = FIELD.W - br; ball.vel.x = -Math.abs(ball.vel.x) * 0.82
+    ball.pos.x = FIELD.W - br; ball.vel.x = -Math.abs(ball.vel.x) * WALL_BOUNCE
   }
 }
 
@@ -353,7 +355,9 @@ function checkGoal(state: GameState): boolean {
   if (scored) {
     for (const p of state.players) {
       const init = getInitialPos(p.id)
-      p.pos = { ...init }; p.vel = { x: 0, y: 0 }; p.stunTimer = 0
+      p.pos = { ...init }; p.vel = { x: 0, y: 0 }
+      // Freeze all players briefly — nobody picks up ball until freeze lifts
+      p.stunTimer = GOAL_FREEZE
     }
     ball.pos = { x: FIELD.CENTER_X, y: FIELD.CENTER_Y }
     ball.vel = { x: 0, y: 0 }
@@ -375,27 +379,33 @@ function resolvePlayerCollision(state: GameState, a: Player, b: Player): void {
   const minDist = FIELD.PLAYER_RADIUS * 2
   if (d >= minDist || d < 0.001) return
 
-  const rvx = b.vel.x - a.vel.x, rvy = b.vel.y - a.vel.y
-  const relSpeed = Math.sqrt(rvx * rvx + rvy * rvy)
-
-  const overlap = (minDist - d) / 2
   const nx = dx / d, ny = dy / d
+
+  // Push apart
+  const overlap = (minDist - d) / 2
   a.pos.x -= nx * overlap; a.pos.y -= ny * overlap
   b.pos.x += nx * overlap; b.pos.y += ny * overlap
   clampToField(a); clampToField(b)
 
+  // Velocity along collision normal
+  const rvx = b.vel.x - a.vel.x, rvy = b.vel.y - a.vel.y
+  const relSpeed = Math.sqrt(rvx * rvx + rvy * rvy)
   const dot = rvx * nx + rvy * ny
+
   if (dot > 0) {
-    a.vel.x += dot * nx * 0.5; a.vel.y += dot * ny * 0.5
-    b.vel.x -= dot * nx * 0.5; b.vel.y -= dot * ny * 0.5
+    // Super-elastic (1.5×): players fly apart harder than they came together
+    const impulse = dot * 1.5
+    a.vel.x += impulse * nx; a.vel.y += impulse * ny
+    b.vel.x -= impulse * nx; b.vel.y -= impulse * ny
   }
 
+  // Stun + ball release on hard collision
   if (relSpeed > FIELD.STUN_SPEED_THRESHOLD && a.stunTimer <= 0 && b.stunTimer <= 0) {
     a.stunTimer = FIELD.STUN_DURATION
     b.stunTimer = FIELD.STUN_DURATION
     if (state.ball.ownerId === a.id || state.ball.ownerId === b.id) {
       state.ball.ownerId = null
-      state.ball.vel = { x: (Math.random() - 0.5) * 8, y: (Math.random() - 0.5) * 8 }
+      state.ball.vel = { x: (Math.random() - 0.5) * 10, y: (Math.random() - 0.5) * 10 }
     }
   }
 }

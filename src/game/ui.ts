@@ -1,5 +1,9 @@
-import type { GameState } from '../types'
+import type { GameState, TeamColor } from '../types'
 import { FIELD } from '../types'
+
+const BADGE_COLORS: Record<TeamColor, string> = {
+  blue: '#3b82f6', red: '#ef4444', green: '#16a34a', yellow: '#eab308',
+}
 
 let ctx: CanvasRenderingContext2D
 let canvas: HTMLCanvasElement
@@ -63,6 +67,7 @@ function drawLoop() {
   ctx.clearRect(0, 0, canvas.width, canvas.height)
 
   drawScoreTimer(latestState)
+  drawPlayerBadge(latestState)
   drawMinimap(latestState)
   drawConfetti()
   drawAlert()
@@ -149,6 +154,40 @@ function drawConfetti() {
     p.x += p.vx; p.y += p.vy; p.vy += 0.12; p.life -= 0.012
   })
   confetti = confetti.filter(p => p.life > 0 && p.y < (canvas?.height ?? 1000) + 20)
+}
+
+function drawPlayerBadge(state: GameState) {
+  if (!myTeamRef) return
+  const username = ((window as any).__username as string) || ''
+  if (!username) return
+
+  const colorName = (state.lobby?.[myTeamRef]?.color ?? (myTeamRef === 'home' ? 'blue' : 'red')) as TeamColor
+  const bgColor = BADGE_COLORS[colorName] ?? '#3b82f6'
+
+  ctx.save()
+  ctx.font = 'bold 14px sans-serif'
+  const tw = ctx.measureText(username).width
+  const padX = 12, padY = 6
+  const bw = tw + padX * 2
+  const bh = 30
+  const bx = 12
+  const by = 72  // just below the score/timer box
+
+  // Pill background
+  ctx.fillStyle = bgColor
+  ctx.beginPath()
+  ctx.arc(bx + bh / 2, by + bh / 2, bh / 2, Math.PI / 2, Math.PI * 3 / 2)
+  ctx.arc(bx + bw - bh / 2, by + bh / 2, bh / 2, Math.PI * 3 / 2, Math.PI / 2)
+  ctx.closePath()
+  ctx.fill()
+
+  // White name text
+  ctx.fillStyle = '#fff'
+  ctx.textAlign = 'left'
+  ctx.textBaseline = 'middle'
+  ctx.fillText(username, bx + padX, by + bh / 2)
+  ctx.textBaseline = 'alphabetic'
+  ctx.restore()
 }
 
 function drawKeyHints() {
