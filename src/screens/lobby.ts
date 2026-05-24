@@ -3,10 +3,12 @@ import { sendLobby, getCurrentRoomId } from '../main'
 
 let _color: TeamColor | null = null
 let _username = ''
+let _composing = false  // true while IME (Korean/CJK) is composing a character
 
 export function resetLobbyLocalState(): void {
   _color = null
   _username = ''
+  _composing = false
 }
 
 export function mountLobby(el: HTMLElement, state?: GameState): void {
@@ -29,6 +31,9 @@ export function mountLobby(el: HTMLElement, state?: GameState): void {
 
   // Waiting for opponent — show room code prominently
   const waitingForOpponent = !lobby && phase === 'lobby'
+
+  // Don't re-render while IME is composing — would destroy the in-progress Korean/CJK character
+  if (_composing) return
 
   // Save username input state so we can restore focus + cursor after re-render
   const prevInput = el.querySelector<HTMLInputElement>('#username-input')
@@ -103,7 +108,15 @@ export function mountLobby(el: HTMLElement, state?: GameState): void {
 
   const usernameInput = el.querySelector<HTMLInputElement>('#username-input')
   if (usernameInput) {
+    usernameInput.addEventListener('compositionstart', () => { _composing = true })
+    usernameInput.addEventListener('compositionend', () => {
+      _composing = false
+      _username = usernameInput.value
+      ;(window as any).__username = _username
+      if (_color) sendLobby({ username: _username })
+    })
     usernameInput.addEventListener('input', () => {
+      if (_composing) return  // let compositionend handle the final commit
       _username = usernameInput.value
       ;(window as any).__username = _username
       if (_color) sendLobby({ username: _username })
