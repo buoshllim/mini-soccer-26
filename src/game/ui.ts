@@ -11,6 +11,7 @@ let alertText = ''
 let alertTimer = 0
 
 export function initHUD(myTeam: 'home' | 'away') {
+  if (animFrame !== null) return  // guard against double-init
   canvas = document.getElementById('hud-canvas') as HTMLCanvasElement
   ctx = canvas.getContext('2d')!
   myTeamRef = myTeam
@@ -20,8 +21,9 @@ export function initHUD(myTeam: 'home' | 'away') {
 }
 
 export function destroyHUD() {
-  if (animFrame) cancelAnimationFrame(animFrame)
+  if (animFrame !== null) { cancelAnimationFrame(animFrame); animFrame = null }
   window.removeEventListener('resize', resize)
+  latestState = null
 }
 
 export function updateHUDState(state: GameState) {
@@ -59,8 +61,7 @@ function drawScoreTimer(state: GameState) {
 
   ctx.save()
   ctx.fillStyle = 'rgba(0,0,0,0.6)'
-  ctx.roundRect(12, 12, 180, 52, 8)
-  ctx.fill()
+  ctx.fillRect(12, 12, 180, 52)
   ctx.fillStyle = '#fff'
   ctx.font = 'bold 20px sans-serif'
   ctx.fillText(`${score.home} : ${score.away}`, 22, 38)
