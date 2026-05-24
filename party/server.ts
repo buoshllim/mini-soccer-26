@@ -85,6 +85,7 @@ export default class SoccerServer implements Party.Server {
   }
 
   private startCountdown() {
+    if (this.state.phase === 'countdown') return
     this.state.phase = 'countdown'
     this.state.countdown = 3
     this.broadcast({ type: 'state', state: this.state })
@@ -111,7 +112,6 @@ export default class SoccerServer implements Party.Server {
     }
     this.state.phase = 'kickoff'
     this.state.kickoffTeam = Math.random() < 0.5 ? 'home' : 'away'
-    this.state.half = 1
     this.state.timeLeft = 5 * 60
     this.state.countdown = undefined
     this.broadcast({ type: 'state', state: this.state })
