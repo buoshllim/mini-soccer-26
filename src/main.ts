@@ -21,11 +21,15 @@ export function getMyTeam() { return myTeam }
 export function getCurrentRoomId() { return currentRoomId }
 
 export function goHome() {
-  if (socket) { socket.close(); socket = null }
+  // Set socket to null BEFORE closing so onclose handler can detect intentional disconnect
+  const s = socket
+  socket = null
+  if (s) s.close()
   activePhase = null; myTeam = null; currentRoomId = null
   stopGame(); destroyInput(); destroyHUD()
   gameActive = false
   resetLobbyLocalState()
+  hideReconnectOverlay()
   screenEl.classList.remove('hidden')
   mountHome(screenEl)
 }
@@ -38,6 +42,7 @@ export function joinRoom(roomId: string) {
   socket = new PartySocket({ host: PARTY_HOST, room: roomId })
 
   socket.onmessage = (e: MessageEvent) => {
+    hideReconnectOverlay()
     const msg: ServerMsg = JSON.parse(e.data)
     if (msg.type === 'assigned') {
       myTeam = msg.team
@@ -49,13 +54,10 @@ export function joinRoom(roomId: string) {
   }
 
   socket.onclose = () => {
-    activePhase = null
-    stopGame()
-    destroyInput()
-    destroyHUD()
-    resetLobbyLocalState()
-    mountHome(screenEl)
-    screenEl.classList.remove('hidden')
+    // socket === null means goHome() was called intentionally — already handled
+    if (!socket) return
+    // Temporary disconnect: show overlay and wait for PartySocket auto-reconnect
+    showReconnectOverlay()
   }
 }
 
@@ -90,6 +92,19 @@ function playWhistle() {
     osc.start()
     osc.stop(ctx.currentTime + 0.5)
   } catch { /* ignore if AudioContext unavailable */ }
+}
+
+function showReconnectOverlay() {
+  if (document.getElementById('reconnect-overlay')) return
+  const el = document.createElement('div')
+  el.id = 'reconnect-overlay'
+  el.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:200;color:#fff;font-size:20px;gap:12px'
+  el.innerHTML = `<div style="font-size:32px">📡</div><div>재접속 중...</div>`
+  document.body.appendChild(el)
+}
+
+function hideReconnectOverlay() {
+  document.getElementById('reconnect-overlay')?.remove()
 }
 
 function onStateUpdate(state: GameState) {

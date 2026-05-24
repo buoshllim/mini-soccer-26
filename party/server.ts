@@ -16,6 +16,8 @@ export default class SoccerServer implements Party.Server {
   private state: GameState
   private inputs: Map<string, PlayerInput> = new Map()
   private assignments: Map<string, 'home' | 'away'> = new Map()
+  private homeConnId: string | null = null
+  private awayConnId: string | null = null
   private tickInterval: ReturnType<typeof setInterval> | null = null
   private countdownTimer: ReturnType<typeof setInterval> | null = null
   private kickoffTimeout: ReturnType<typeof setTimeout> | null = null
@@ -26,16 +28,27 @@ export default class SoccerServer implements Party.Server {
   }
 
   onConnect(conn: Party.Connection) {
-    if (this.assignments.size >= 2) {
+    // Assign to the first empty slot (home or away), preserving team across reconnects
+    let team: 'home' | 'away' | null = null
+    if (this.homeConnId === null) {
+      team = 'home'
+      this.homeConnId = conn.id
+    } else if (this.awayConnId === null) {
+      team = 'away'
+      this.awayConnId = conn.id
+    }
+
+    if (team === null) {
       conn.send(JSON.stringify({ type: 'error', msg: 'Room full' } satisfies ServerMsg))
       conn.close()
       return
     }
-    const team = this.assignments.size === 0 ? 'home' : 'away'
+
     this.assignments.set(conn.id, team)
     conn.send(JSON.stringify({ type: 'assigned', team } satisfies ServerMsg))
 
-    if (this.assignments.size === 2 && this.state.phase === 'lobby') {
+    // Init lobby only when both slots are filled and lobby hasn't started yet
+    if (this.homeConnId && this.awayConnId && this.state.phase === 'lobby' && !this.state.lobby) {
       this.initLobby()
     }
 
@@ -43,21 +56,19 @@ export default class SoccerServer implements Party.Server {
   }
 
   onClose(conn: Party.Connection) {
+    if (this.homeConnId === conn.id) this.homeConnId = null
+    if (this.awayConnId === conn.id) this.awayConnId = null
     this.assignments.delete(conn.id)
     this.inputs.delete(conn.id)
 
-    if (this.assignments.size < 2 && this.state.lobby) {
-      this.state.lobby = undefined
-      this.state.phase = 'lobby'
-    }
-
-    if (this.assignments.size === 0) {
-      // Room is empty — clean everything up
+    if (!this.homeConnId && !this.awayConnId) {
+      // Room completely empty — reset everything
       if (this.tickInterval) { clearInterval(this.tickInterval); this.tickInterval = null }
       if (this.countdownTimer) { clearInterval(this.countdownTimer); this.countdownTimer = null }
       if (this.kickoffTimeout) { clearTimeout(this.kickoffTimeout); this.kickoffTimeout = null }
       this.state = makeInitialState()
     }
+    // If only one player disconnected, preserve game state for reconnection
 
     this.broadcast({ type: 'state', state: this.state })
   }
