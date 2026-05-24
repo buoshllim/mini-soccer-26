@@ -166,7 +166,9 @@ export default class SoccerServer implements Party.Server {
       // Process action input
       if (player.isControlled && input?.action) {
         if (player.hasBall) {
-          handleBallAction(state, player, input)
+          // Client sends tackle/slidetackle/gkrush for C/X/Z; server upgrades to pass actions
+          const translatedInput = translateActionForBall(input)
+          handleBallAction(state, player, translatedInput)
         } else {
           handleNoBallAction(state, player, input)
         }
@@ -394,6 +396,14 @@ function triggerSetpiece(state: GameState, type: SetpieceState['type'], team: 'h
       y: clamp(pos.y, FIELD.PLAYER_RADIUS, FIELD.H - FIELD.PLAYER_RADIUS),
     }
   }
+}
+
+function translateActionForBall(input: PlayerInput): PlayerInput {
+  const map: Partial<Record<NonNullable<PlayerInput['action']>, PlayerInput['action']>> = {
+    tackle: 'lowpass', slidetackle: 'loftedpass', gkrush: 'throughpass',
+  }
+  const translated = input.action ? (map[input.action] ?? input.action) : null
+  return { ...input, action: translated }
 }
 
 function handleBallAction(state: GameState, player: Player, input: PlayerInput): void {

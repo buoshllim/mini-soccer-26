@@ -2,60 +2,39 @@ import nipplejs from 'nipplejs'
 import type { PlayerInput } from '../types'
 import { sendInput } from '../main'
 
-// Key state
 const keysDown = new Set<string>()
 
-// Joystick state
 let joyDx = 0
 let joyDy = 0
 
-// Action state
 let actionStart: number | null = null
+let releasedPower: number | null = null
 let pendingAction: PlayerInput['action'] = null
 
-// Flags
 let sprintActive = false
 let switchActive = false
 
-// Timer
 let inputLoopId: ReturnType<typeof setInterval> | null = null
 let joystickManager: ReturnType<typeof nipplejs.create> | null = null
 let mobileContainer: HTMLElement | null = null
 
 export function initInput(): void {
+  if (inputLoopId !== null) return  // guard against double-init
   window.addEventListener('keydown', onKeyDown)
   window.addEventListener('keyup', onKeyUp)
-
-  if (isMobile()) {
-    setupMobileControls()
-  }
-
-  inputLoopId = setInterval(flushInput, 50)  // 20Hz
+  if (isMobile()) setupMobileControls()
+  inputLoopId = setInterval(flushInput, 50)
 }
 
 export function destroyInput(): void {
   window.removeEventListener('keydown', onKeyDown)
   window.removeEventListener('keyup', onKeyUp)
   keysDown.clear()
-
-  if (inputLoopId !== null) {
-    clearInterval(inputLoopId)
-    inputLoopId = null
-  }
-
-  if (joystickManager) {
-    joystickManager.destroy()
-    joystickManager = null
-  }
-
-  if (mobileContainer) {
-    mobileContainer.remove()
-    mobileContainer = null
-  }
-
-  // Reset state
+  if (inputLoopId !== null) { clearInterval(inputLoopId); inputLoopId = null }
+  if (joystickManager) { joystickManager.destroy(); joystickManager = null }
+  if (mobileContainer) { mobileContainer.remove(); mobileContainer = null }
   joyDx = 0; joyDy = 0
-  actionStart = null; pendingAction = null
+  actionStart = null; releasedPower = null; pendingAction = null
   sprintActive = false; switchActive = false
 }
 
@@ -64,116 +43,92 @@ function isMobile(): boolean {
 }
 
 function onKeyDown(e: KeyboardEvent): void {
-  const key = e.key.toLowerCase()
-  keysDown.add(e.key)
-  keysDown.add(key)
+  const k = e.key.toLowerCase()
+  keysDown.add(k)
 
-  // Prevent default for game keys
-  if (['arrowup','arrowdown','arrowleft','arrowright',' ','tab'].includes(key)) {
+  if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' ', 'tab'].includes(k)) {
     e.preventDefault()
   }
 
-  // Action keys: register press start (action fires on release or per-tick while held)
-  if (!actionStart && isActionKey(e.key)) {
+  if (!actionStart && isActionKey(k)) {
     actionStart = Date.now()
-    pendingAction = keyToAction(e.key, true)  // assume has ball
+    pendingAction = keyToAction(k)
   }
 
-  if (key === 'tab') {
-    switchActive = true
-    e.preventDefault()
-  }
+  if (k === 'tab') switchActive = true
 }
 
 function onKeyUp(e: KeyboardEvent): void {
-  keysDown.delete(e.key)
-  keysDown.delete(e.key.toLowerCase())
+  const k = e.key.toLowerCase()
+  keysDown.delete(k)
 
-  if (isActionKey(e.key) && actionStart !== null) {
-    // Action fires on key release with accumulated power
+  if (isActionKey(k) && actionStart !== null) {
+    releasedPower = Math.min((Date.now() - actionStart) / 1500, 1)
     actionStart = null
-    // pendingAction stays set for this flush tick, then cleared
   }
 }
 
-function isActionKey(key: string): boolean {
-  return [' ', 'c', 'C', 'x', 'X', 'z', 'Z'].includes(key)
+function isActionKey(k: string): boolean {
+  return [' ', 'c', 'x', 'z'].includes(k)
 }
 
-function keyToAction(key: string, hasBall: boolean): PlayerInput['action'] {
-  const k = key.toLowerCase()
-  if (k === ' ') return hasBall ? 'shoot' : null
-  if (k === 'c') return hasBall ? 'lowpass' : 'tackle'
-  if (k === 'x') return hasBall ? 'loftedpass' : 'slidetackle'
-  if (k === 'z') return hasBall ? 'throughpass' : 'gkrush'
+// hasBall context not available client-side; server resolves ownership.
+// C/X/Z default to tackle/slidetackle/gkrush — server upgrades to pass when ball is attached.
+function keyToAction(k: string): PlayerInput['action'] {
+  if (k === ' ') return 'shoot'
+  if (k === 'c') return 'tackle'
+  if (k === 'x') return 'slidetackle'
+  if (k === 'z') return 'gkrush'
   return null
 }
 
 function getDxDy(): { dx: number; dy: number } {
-  // Joystick takes priority on mobile
   if (joyDx !== 0 || joyDy !== 0) return { dx: joyDx, dy: joyDy }
 
   let dx = 0, dy = 0
-  if (keysDown.has('ArrowLeft')  || keysDown.has('a')) dx -= 1
-  if (keysDown.has('ArrowRight') || keysDown.has('d')) dx += 1
-  if (keysDown.has('ArrowUp')    || keysDown.has('w')) dy -= 1
-  if (keysDown.has('ArrowDown')  || keysDown.has('s')) dy += 1
+  if (keysDown.has('arrowleft')  || keysDown.has('a')) dx -= 1
+  if (keysDown.has('arrowright') || keysDown.has('d')) dx += 1
+  if (keysDown.has('arrowup')    || keysDown.has('w')) dy -= 1
+  if (keysDown.has('arrowdown')  || keysDown.has('s')) dy += 1
 
-  // Normalize diagonal
   if (dx !== 0 && dy !== 0) {
     const len = Math.sqrt(dx * dx + dy * dy)
     dx /= len; dy /= len
   }
 
-  return { dx: Math.round(dx * 10) / 10, dy: Math.round(dy * 10) / 10 }
+  return { dx: Math.round(dx * 100) / 100, dy: Math.round(dy * 100) / 100 }
 }
 
 function flushInput(): void {
   const { dx, dy } = getDxDy()
-  const sprint = sprintActive || keysDown.has('Shift')
+  const sprint = sprintActive || keysDown.has('shift')
 
   let action: PlayerInput['action'] = null
   let power = 0
 
   if (pendingAction !== null) {
     if (actionStart !== null) {
-      // Button still held: send hold action with growing power
       power = Math.min((Date.now() - actionStart) / 1500, 1)
       action = pendingAction
 
-      // Chip shot combo: Space + X pressed simultaneously
-      const spaceHeld = keysDown.has(' ')
-      const xHeld = keysDown.has('x') || keysDown.has('X')
-      if (spaceHeld && xHeld) {
+      // Chip shot: Space + X held simultaneously
+      if (keysDown.has(' ') && keysDown.has('x')) {
         action = 'chipshot'
         power = 1
       }
-    } else {
-      // Key was released this tick — fire the final action
+    } else if (releasedPower !== null) {
       action = pendingAction
-      power = 1
+      power = releasedPower
+      releasedPower = null
       pendingAction = null
     }
   }
 
-  const input: PlayerInput = {
-    dx: Math.round(dx * 100) / 100,
-    dy: Math.round(dy * 100) / 100,
-    sprint,
-    switchPlayer: switchActive,
-    action,
-    power,
-  }
-
-  sendInput(input)
-
-  // Reset per-tick flags
+  sendInput({ dx, dy, sprint, switchPlayer: switchActive, action, power })
   switchActive = false
-  // Note: pendingAction cleared on key release, not here
 }
 
 function setupMobileControls(): void {
-  // Container for all mobile UI
   mobileContainer = document.createElement('div')
   mobileContainer.id = 'mobile-controls'
   mobileContainer.style.cssText = `
@@ -182,7 +137,6 @@ function setupMobileControls(): void {
   `
   document.body.appendChild(mobileContainer)
 
-  // Joystick zone (left side)
   const joyZone = document.createElement('div')
   joyZone.style.cssText = `
     position: absolute; left: 0; bottom: 0; width: 160px; height: 160px;
@@ -191,23 +145,17 @@ function setupMobileControls(): void {
   mobileContainer.appendChild(joyZone)
 
   joystickManager = nipplejs.create({
-    zone: joyZone,
-    mode: 'static',
+    zone: joyZone, mode: 'static',
     position: { left: '80px', bottom: '80px' },
-    color: 'rgba(255,255,255,0.3)',
-    size: 100,
+    color: 'rgba(255,255,255,0.3)', size: 100,
   })
 
   joystickManager.on('move', (evt) => {
     const vector = evt.data?.vector
-    if (vector) {
-      joyDx = vector.x
-      joyDy = -vector.y  // nipplejs y is inverted
-    }
+    if (vector) { joyDx = vector.x; joyDy = -vector.y }
   })
   joystickManager.on('end', () => { joyDx = 0; joyDy = 0 })
 
-  // Action buttons (right side)
   const btnArea = document.createElement('div')
   btnArea.style.cssText = `
     position: absolute; right: 16px; bottom: 16px;
@@ -224,17 +172,16 @@ function setupMobileControls(): void {
       background: rgba(0,0,0,0.5); color: #fff; font-size: 13px; font-weight: bold;
       touch-action: none;
     `
-    const startAction = () => {
-      if (!actionStart) {
-        actionStart = Date.now()
-        pendingAction = keyToAction(key, true)
+    btn.addEventListener('touchstart', () => {
+      if (!actionStart) { actionStart = Date.now(); pendingAction = keyToAction(key) }
+    }, { passive: true })
+    btn.addEventListener('touchend', () => {
+      if (actionStart !== null) {
+        releasedPower = Math.min((Date.now() - actionStart) / 1500, 1)
+        actionStart = null
       }
-    }
-    const endAction = () => { actionStart = null }
-    btn.addEventListener('touchstart', startAction, { passive: true })
-    btn.addEventListener('touchend', endAction, { passive: true })
+    }, { passive: true })
     btnArea.appendChild(btn)
-    return btn
   }
 
   addBtn('Shoot', ' ')
@@ -242,7 +189,6 @@ function setupMobileControls(): void {
   addBtn('X', 'x')
   addBtn('Z', 'z')
 
-  // Sprint button
   const sprintBtn = document.createElement('button')
   sprintBtn.textContent = '⚡'
   sprintBtn.style.cssText = `
@@ -255,7 +201,6 @@ function setupMobileControls(): void {
   sprintBtn.addEventListener('touchend', () => { sprintActive = false }, { passive: true })
   mobileContainer.appendChild(sprintBtn)
 
-  // Switch button
   const switchBtn = document.createElement('button')
   switchBtn.textContent = '↔'
   switchBtn.style.cssText = `
