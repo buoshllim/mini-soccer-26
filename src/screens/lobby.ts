@@ -30,6 +30,13 @@ export function mountLobby(el: HTMLElement, state?: GameState): void {
   // Waiting for opponent — show room code prominently
   const waitingForOpponent = !lobby && phase === 'lobby'
 
+  // Save username input state so we can restore focus + cursor after re-render
+  const prevInput = el.querySelector<HTMLInputElement>('#username-input')
+  const hadInputFocus = document.activeElement === prevInput
+  const selStart = prevInput?.selectionStart ?? null
+  const selEnd = prevInput?.selectionEnd ?? null
+  const isFirstRender = !prevInput
+
   el.innerHTML = `
     <div style="display:flex;flex-direction:column;align-items:center;gap:20px;padding:32px;max-width:380px;margin:auto">
 
@@ -94,11 +101,24 @@ export function mountLobby(el: HTMLElement, state?: GameState): void {
   `
 
   const usernameInput = el.querySelector<HTMLInputElement>('#username-input')
-  usernameInput?.addEventListener('input', () => {
-    _username = usernameInput.value
-    ;(window as any).__username = _username
-    if (_color) sendLobby({ username: _username })
-  })
+  if (usernameInput) {
+    usernameInput.addEventListener('input', () => {
+      _username = usernameInput.value
+      ;(window as any).__username = _username
+      if (_color) sendLobby({ username: _username })
+    })
+
+    if (hadInputFocus) {
+      // Restore focus + cursor position after re-render (e.g. color click)
+      usernameInput.focus()
+      if (selStart !== null && selEnd !== null) {
+        try { usernameInput.setSelectionRange(selStart, selEnd) } catch { /* ignore */ }
+      }
+    } else if (isFirstRender) {
+      // Auto-focus on first appearance so user can type without clicking
+      requestAnimationFrame(() => usernameInput.focus())
+    }
+  }
 
   el.querySelectorAll('[data-color]').forEach(btn => {
     btn.addEventListener('click', () => {
