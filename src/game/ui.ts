@@ -100,16 +100,17 @@ function drawScoreTimer(state: GameState) {
   const homeColor = BADGE_COLORS[homeColorName]
   const awayColor = BADGE_COLORS[awayColorName]
 
-  const boxW = mob ? 140 : 300
+  const boxW = mob ? 220 : 300
   const boxH = mob ? 36 : 58
   const boxX = 10, boxY = 10
   const midX = boxX + boxW / 2
   const dotR = mob ? 4 : 8
-  const nameLen = mob ? 4 : 8
+  // max pixel width available for each name (half the box minus score center minus dot area)
+  const nameMaxW = mob ? 62 : 88
 
   ctx.save()
 
-  ctx.fillStyle = 'rgba(0,0,0,0.68)'
+  ctx.fillStyle = 'rgba(0,0,0,0.45)'
   roundRect(ctx, boxX, boxY, boxW, boxH, 10)
   ctx.fill()
 
@@ -135,11 +136,11 @@ function drawScoreTimer(state: GameState) {
   ctx.font = mob ? '8px sans-serif' : 'bold 11px sans-serif'
   ctx.textAlign = 'left'
   ctx.textBaseline = 'middle'
-  ctx.fillText(homeUsername.slice(0, nameLen), boxX + dotR * 2 + 5, boxY + (mob ? 12 : 20))
+  ctx.fillText(homeUsername, boxX + dotR * 2 + 5, boxY + (mob ? 12 : 20), nameMaxW)
 
   // Away: username + dot (right)
   ctx.textAlign = 'right'
-  ctx.fillText(awayUsername.slice(0, nameLen), boxX + boxW - dotR * 2 - 5, boxY + (mob ? 12 : 20))
+  ctx.fillText(awayUsername, boxX + boxW - dotR * 2 - 5, boxY + (mob ? 12 : 20), nameMaxW)
 
   ctx.fillStyle = awayColor
   ctx.beginPath()
@@ -157,9 +158,9 @@ function drawMinimap(state: GameState) {
   const my = canvas.height - mh - (mob ? 8 : 14)
 
   ctx.save()
-  ctx.fillStyle = 'rgba(0,0,0,0.5)'
+  ctx.fillStyle = 'rgba(0,0,0,0.3)'
   ctx.fillRect(mx, my, mw, mh)
-  ctx.strokeStyle = 'rgba(255,255,255,0.4)'
+  ctx.strokeStyle = 'rgba(255,255,255,0.25)'
   ctx.strokeRect(mx, my, mw, mh)
 
   // Midline
