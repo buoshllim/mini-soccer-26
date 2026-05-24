@@ -2,7 +2,6 @@ import * as THREE from 'three'
 import type { GameState } from '../types'
 import { FIELD } from '../types'
 import { tickCamera } from './camera'
-import { initInput, destroyInput } from './input'
 
 // Scene globals
 let renderer: THREE.WebGLRenderer | null = null
@@ -44,8 +43,6 @@ export function startGame(initialState: GameState): void {
   buildBall()
   syncPlayers(initialState)
 
-  initInput()
-
   window.addEventListener('resize', onResize)
   animFrameId = requestAnimationFrame(renderLoop)
 }
@@ -65,7 +62,6 @@ export function stopGame(): void {
   scene = null
   camera = null
   latestState = null
-  destroyInput()
   window.removeEventListener('resize', onResize)
 }
 
