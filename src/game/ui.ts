@@ -154,23 +154,35 @@ function drawConfetti() {
 function drawKeyHints() {
   if (!ctx || !canvas) return
   const hints = [
-    ['↑↓←→', '이동'], ['Space', '슛'], ['C', '패스'],
-    ['X', '로프트'], ['Z', '스루패스'], ['Tab', '교체(수비)'], ['Shift', '달리기'],
+    ['↑↓←→/WASD', '이동'],
+    ['Space', '슛'],
+    ['C', '패스'],
+    ['X', '로프트 패스'],
+    ['Z', '스루 / GK 돌진'],
+    ['Tab', '선수 교체(수비)'],
+    ['Shift', '달리기'],
   ]
-  const bh = 34
+  const lineH = 18
+  const padX = 10
+  const padY = 8
+  const panelW = 185
+  const panelH = hints.length * lineH + padY * 2
+  const px = 12
+  const py = canvas.height - panelH - 12
+
   ctx.save()
-  ctx.fillStyle = 'rgba(0,0,0,0.55)'
-  ctx.fillRect(0, canvas.height - bh, canvas.width, bh)
-  const cellW = canvas.width / hints.length
+  ctx.fillStyle = 'rgba(0,0,0,0.62)'
+  ctx.fillRect(px, py, panelW, panelH)
+
   hints.forEach(([key, label], i) => {
-    const cx = cellW * i + cellW / 2
-    ctx.font = 'bold 11px sans-serif'
-    ctx.textAlign = 'center'
-    ctx.fillStyle = '#e0e0e0'
-    ctx.fillText(`[${key}]`, cx, canvas.height - 20)
+    const ty = py + padY + lineH * i + 12
+    ctx.font = 'bold 10px monospace'
+    ctx.textAlign = 'left'
+    ctx.fillStyle = '#ffd700'
+    ctx.fillText(`[${key}]`, px + padX, ty)
     ctx.font = '10px sans-serif'
-    ctx.fillStyle = '#888'
-    ctx.fillText(label, cx, canvas.height - 7)
+    ctx.fillStyle = '#bbb'
+    ctx.fillText(label, px + padX + 100, ty)
   })
   ctx.restore()
 }

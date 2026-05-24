@@ -84,7 +84,7 @@ export type ClientMsg =
 // Field constants (game units)
 export const FIELD = {
   W: 100, H: 60,
-  GOAL_WIDTH: 8,
+  GOAL_WIDTH: 12,
   PA_DEPTH: 16, PA_HALF_WIDTH: 18,  // penalty area
   CENTER_X: 50, CENTER_Y: 30,
   PLAYER_RADIUS: 1,

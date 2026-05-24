@@ -18,12 +18,13 @@ export function tickCamera(camera: THREE.PerspectiveCamera, state: GameState): v
 
   camera.position.x = camTargetX
   camera.position.z = camTargetZ
-  camera.lookAt(camTargetX, 0, 0)
+  // Look below center so field appears in upper half of screen
+  camera.lookAt(camTargetX, -12, 0)
 }
 
 export function resetCamera(camera: THREE.PerspectiveCamera): void {
   camera.position.set(0, -38, 45)
-  camera.lookAt(0, 0, 0)
+  camera.lookAt(0, -12, 0)
   camTargetX = 0
   camTargetZ = 45
 }

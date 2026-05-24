@@ -38,7 +38,7 @@ export function startGame(initialState: GameState): void {
 
   camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 500)
   camera.position.set(0, -38, 45)
-  camera.lookAt(0, 0, 0)
+  camera.lookAt(0, -12, 0)
 
   buildLighting()
   buildField()
@@ -164,9 +164,10 @@ function buildField(): void {
 function buildGoal(x: number): void {
   if (!scene) return
   const mat = new THREE.MeshLambertMaterial({ color: 0xeeeeee })
-  const goalHW = FIELD.GOAL_WIDTH / 2  // 4 world units
-  const depth = 2.5  // goal depth in world units
-  const dir = x < 0 ? 1 : -1  // direction into the field
+  const goalHW = FIELD.GOAL_WIDTH / 2  // world units
+  const depth = 3.0  // goal depth in world units
+  const dir = x < 0 ? -1 : 1  // direction away from field (outside)
+  const backX = x + dir * depth
 
   // Front posts (standing upright along Z)
   const postGeo = new THREE.CylinderGeometry(0.18, 0.18, 5, 8)
@@ -182,23 +183,22 @@ function buildGoal(x: number): void {
 
   // Front crossbar (horizontal along Y, connecting both posts at top)
   const crossGeo = new THREE.CylinderGeometry(0.13, 0.13, FIELD.GOAL_WIDTH, 8)
-  // Default cylinder is along Y — no rotation needed
   const crossbar = new THREE.Mesh(crossGeo, mat)
   crossbar.position.set(x, 0, 5)
   scene.add(crossbar)
 
-  // Back posts
+  // Back posts (outside field)
   const lBackPost = new THREE.Mesh(postGeo.clone(), mat)
-  lBackPost.position.set(x + dir * depth, -goalHW, 2.5)
+  lBackPost.position.set(backX, -goalHW, 2.5)
   scene.add(lBackPost)
 
   const rBackPost = new THREE.Mesh(postGeo.clone(), mat)
-  rBackPost.position.set(x + dir * depth, goalHW, 2.5)
+  rBackPost.position.set(backX, goalHW, 2.5)
   scene.add(rBackPost)
 
   // Back crossbar
   const backCross = new THREE.Mesh(crossGeo.clone(), mat)
-  backCross.position.set(x + dir * depth, 0, 5)
+  backCross.position.set(backX, 0, 5)
   scene.add(backCross)
 
   // Side top bars (along X connecting front to back at top)
@@ -212,6 +212,66 @@ function buildGoal(x: number): void {
   const rTopBar = new THREE.Mesh(sideBarGeo.clone(), mat)
   rTopBar.position.set(x + dir * depth / 2, goalHW, 5)
   scene.add(rTopBar)
+
+  // Net
+  buildGoalNet(x, dir, goalHW, depth, backX)
+}
+
+function buildGoalNet(frontX: number, dir: number, goalHW: number, depth: number, backX: number): void {
+  if (!scene) return
+  const netMat = new THREE.LineBasicMaterial({ color: 0xdddddd, transparent: true, opacity: 0.45 })
+  const zTop = 5
+  const NX = 6   // divisions front-to-back
+  const NZ = 5   // divisions bottom-to-top
+  const NY = 8   // divisions side-to-side
+
+  const pts: THREE.Vector3[] = []
+
+  // Left side panel (y = -goalHW): vertical and horizontal lines
+  for (let i = 0; i <= NX; i++) {
+    const nx = frontX + dir * (depth * i / NX)
+    pts.push(new THREE.Vector3(nx, -goalHW, 0), new THREE.Vector3(nx, -goalHW, zTop))
+  }
+  for (let j = 0; j <= NZ; j++) {
+    const nz = zTop * j / NZ
+    pts.push(new THREE.Vector3(frontX, -goalHW, nz), new THREE.Vector3(backX, -goalHW, nz))
+  }
+
+  // Right side panel (y = +goalHW)
+  for (let i = 0; i <= NX; i++) {
+    const nx = frontX + dir * (depth * i / NX)
+    pts.push(new THREE.Vector3(nx, goalHW, 0), new THREE.Vector3(nx, goalHW, zTop))
+  }
+  for (let j = 0; j <= NZ; j++) {
+    const nz = zTop * j / NZ
+    pts.push(new THREE.Vector3(frontX, goalHW, nz), new THREE.Vector3(backX, goalHW, nz))
+  }
+
+  // Top panel (z = zTop): front to back, left to right
+  for (let i = 0; i <= NX; i++) {
+    const nx = frontX + dir * (depth * i / NX)
+    pts.push(new THREE.Vector3(nx, -goalHW, zTop), new THREE.Vector3(nx, goalHW, zTop))
+  }
+  for (let j = 0; j <= NY; j++) {
+    const ny = -goalHW + (goalHW * 2 * j / NY)
+    pts.push(new THREE.Vector3(frontX, ny, zTop), new THREE.Vector3(backX, ny, zTop))
+  }
+
+  // Back net (slanted): from front-ground to back-top (realistic angled shape)
+  for (let j = 0; j <= NY; j++) {
+    const ny = -goalHW + (goalHW * 2 * j / NY)
+    // Slanted lines: front ground → back top
+    pts.push(new THREE.Vector3(frontX, ny, 0), new THREE.Vector3(backX, ny, zTop))
+  }
+  for (let i = 0; i <= NX; i++) {
+    const t = i / NX
+    const nx = frontX + dir * depth * t
+    const nz = zTop * t
+    pts.push(new THREE.Vector3(nx, -goalHW, nz), new THREE.Vector3(nx, goalHW, nz))
+  }
+
+  const geo = new THREE.BufferGeometry().setFromPoints(pts)
+  scene.add(new THREE.LineSegments(geo, netMat))
 }
 
 function buildBall(): void {
@@ -241,13 +301,13 @@ function buildIndicator(): void {
 
 // ─── Character building ───────────────────────────────────────────────────────
 
-function buildPlayerMesh(color: number): THREE.Group {
+function buildPlayerMesh(color: number, isGK = false): THREE.Group {
   const group = new THREE.Group()
   const mat = (c: number) => new THREE.MeshLambertMaterial({ color: c })
 
-  const SKIN = 0xfbbf24  // skin color
+  const SKIN = 0xfbbf24
 
-  // Body (jersey) — raised so feet are at z=0
+  // Body (jersey)
   const body = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1.0, 2.2), mat(color))
   body.position.set(0, 0, 3.3)
   group.add(body)
@@ -257,14 +317,35 @@ function buildPlayerMesh(color: number): THREE.Group {
   head.position.set(0, 0, 5.5)
   group.add(head)
 
-  // Arms
-  const armGeo = new THREE.BoxGeometry(0.5, 0.5, 1.6)
-  const lArm = new THREE.Mesh(armGeo, mat(color))
-  lArm.position.set(-1.2, 0, 3.4)
-  group.add(lArm)
-  const rArm = new THREE.Mesh(armGeo, mat(color))
-  rArm.position.set(1.2, 0, 3.4)
-  group.add(rArm)
+  if (isGK) {
+    // GK: bigger arms + yellow gloves
+    const armGeo = new THREE.BoxGeometry(0.75, 0.75, 2.0)
+    const lArm = new THREE.Mesh(armGeo, mat(color))
+    lArm.position.set(-1.3, 0, 3.4)
+    group.add(lArm)
+    const rArm = new THREE.Mesh(armGeo, mat(color))
+    rArm.position.set(1.3, 0, 3.4)
+    group.add(rArm)
+
+    // Gloves at arm tips
+    const gloveGeo = new THREE.BoxGeometry(1.0, 1.0, 0.8)
+    const gloveMat = mat(0x22cc44)  // green gloves
+    const lGlove = new THREE.Mesh(gloveGeo, gloveMat)
+    lGlove.position.set(-1.3, 0, 4.7)
+    group.add(lGlove)
+    const rGlove = new THREE.Mesh(gloveGeo, gloveMat)
+    rGlove.position.set(1.3, 0, 4.7)
+    group.add(rGlove)
+  } else {
+    // Regular arms
+    const armGeo = new THREE.BoxGeometry(0.5, 0.5, 1.6)
+    const lArm = new THREE.Mesh(armGeo, mat(color))
+    lArm.position.set(-1.2, 0, 3.4)
+    group.add(lArm)
+    const rArm = new THREE.Mesh(armGeo, mat(color))
+    rArm.position.set(1.2, 0, 3.4)
+    group.add(rArm)
+  }
 
   // Legs
   const legGeo = new THREE.BoxGeometry(0.6, 0.6, 2.0)
@@ -275,9 +356,7 @@ function buildPlayerMesh(color: number): THREE.Group {
   rLeg.position.set(0.5, 0, 1.2)
   group.add(rLeg)
 
-  // Scale down to appropriate field size
   group.scale.setScalar(0.65)
-
   return group
 }
 
@@ -296,7 +375,7 @@ function syncPlayers(state: GameState): void {
 
     if (!mesh) {
       const color = getTeamColor(state, player.team)
-      mesh = buildPlayerMesh(color)
+      mesh = buildPlayerMesh(color, player.role === 'gk')
       scene.add(mesh)
       playerMeshes.set(player.id, mesh)
     }
@@ -317,12 +396,9 @@ function syncPlayers(state: GameState): void {
     }
   }
 
-  // Indicator above controlled player (only while defending)
+  // Indicator above controlled player — always visible
   if (indicatorMesh) {
-    const ballOwner = state.players.find(p => p.id === state.ball.ownerId)
-    const myTeamHasBall = rendererMyTeam && ballOwner?.team === rendererMyTeam
-    const showIndicator = !myTeamHasBall && rendererMyTeam !== null
-    const myControlled = showIndicator
+    const myControlled = rendererMyTeam
       ? state.players.find(p => p.team === rendererMyTeam && p.isControlled)
       : null
 
