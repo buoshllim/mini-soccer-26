@@ -1,5 +1,5 @@
 import type * as Party from 'partykit/server'
-import type { GameState, PlayerInput, ClientMsg, ServerMsg, LobbyState, Player, Ball, Vec2, PlayerRole } from '../src/types'
+import type { GameState, PlayerInput, ClientMsg, ServerMsg, LobbyState, Player, Ball, Vec2, PlayerRole, SetpieceState } from '../src/types'
 import { FIELD } from '../src/types'
 
 const TICK_MS = 50  // 20 ticks/sec
@@ -162,10 +162,52 @@ export default class SoccerServer implements Party.Server {
         : null
 
       tickPlayerMovement(player, input)
+
+      // Process action input
+      if (player.isControlled && input?.action) {
+        if (player.hasBall) {
+          handleBallAction(state, player, input)
+        } else {
+          handleNoBallAction(state, player, input)
+        }
+      }
+
+      // Tab: switch controlled player
+      if (player.isControlled && input?.switchPlayer) {
+        const teammates = state.players
+          .filter(p => p.team === player.team && p.role !== 'gk' && !p.isControlled)
+          .sort((a, b) => dist2d(a.pos, state.ball.pos) - dist2d(b.pos, state.ball.pos))
+
+        if (teammates.length > 0) {
+          player.isControlled = false
+          teammates[0].isControlled = true
+        }
+      }
     }
 
     // Ball physics
     tickBallPhysics(state.ball)
+
+    // Goal detection
+    if (checkGoal(state)) {
+      const kickoffTeam = state.score.home > state.score.away ? 'away' : 'home'
+      state.kickoffTeam = kickoffTeam
+      state.phase = 'kickoff'
+      state.ball = { pos: { x: FIELD.CENTER_X, y: FIELD.CENTER_Y, z: 0 }, vel: { x: 0, y: 0, z: 0 }, ownerId: null }
+      for (const p of state.players) {
+        p.hasBall = false
+        // Reset controlled: 1st outfielder of each team
+        const isFirst = state.players.filter(pp => pp.team === p.team && pp.role !== 'gk').indexOf(p) === 0
+        p.isControlled = isFirst
+      }
+      if (this.kickoffTimeout) clearTimeout(this.kickoffTimeout)
+      this.kickoffTimeout = setTimeout(() => {
+        if (this.state.phase === 'kickoff') this.state.phase = 'playing'
+        this.kickoffTimeout = null
+      }, 2000)
+      this.broadcast({ type: 'state', state })
+      return  // skip rest of tick
+    }
 
     // Track last touching team for out-of-bounds logic (added in Task 14)
     if (state.ball.ownerId !== null) {
@@ -305,6 +347,230 @@ function randomUniqueJersey(used: Set<number>): number {
     n = Math.floor(Math.random() * 98) + 2  // 2-99 range for AI (human can pick 1-99)
   } while (used.has(n))
   return n
+}
+
+// ---- Action helpers ----
+
+function isInPenaltyArea(pos: Vec2, team: 'home' | 'away'): boolean {
+  // Is pos inside team's OWN penalty area?
+  const paLeft = team === 'home' ? 0 : FIELD.W - FIELD.PA_DEPTH
+  const paRight = team === 'home' ? FIELD.PA_DEPTH : FIELD.W
+  const paTop = FIELD.CENTER_Y - FIELD.PA_HALF_WIDTH
+  const paBottom = FIELD.CENTER_Y + FIELD.PA_HALF_WIDTH
+  return pos.x >= paLeft && pos.x <= paRight && pos.y >= paTop && pos.y <= paBottom
+}
+
+function triggerSetpiece(state: GameState, type: SetpieceState['type'], team: 'home' | 'away', pos: Vec2): void {
+  state.phase = type
+  state.setpiece = { type, team, pos: { x: pos.x, y: pos.y } }
+  state.ball.pos = { x: pos.x, y: pos.y, z: 0 }
+  state.ball.vel = { x: 0, y: 0, z: 0 }
+  state.ball.ownerId = null
+
+  // Release ball from any player
+  for (const p of state.players) p.hasBall = false
+
+  // Auto-place controlled player 1.5 units behind ball (FC style)
+  const controlled = state.players.find(p => p.team === team && p.isControlled)
+  if (controlled) {
+    const dir = team === 'home' ? -1 : 1  // behind = toward own goal
+    controlled.pos = {
+      x: clamp(pos.x + dir * 1.5, FIELD.PLAYER_RADIUS, FIELD.W - FIELD.PLAYER_RADIUS),
+      y: clamp(pos.y, FIELD.PLAYER_RADIUS, FIELD.H - FIELD.PLAYER_RADIUS),
+    }
+  }
+}
+
+function handleBallAction(state: GameState, player: Player, input: PlayerInput): void {
+  const { ball } = state
+  // Kick direction: arrow keys if pressed, else player facing
+  const hasDir = input.dx !== 0 || input.dy !== 0
+  const dir = hasDir ? norm2d({ x: input.dx, y: input.dy }) : player.facing
+
+  const power = clamp(input.power, 0, 1)
+  const kickSpeed = (base: number) => base * (0.4 + power * 0.6)
+
+  const releaseBall = () => {
+    player.hasBall = false
+    ball.ownerId = null
+    player.animState = 'kick'
+  }
+
+  switch (input.action) {
+    case 'shoot': {
+      const spd = kickSpeed(28)
+      ball.vel = { x: dir.x * spd, y: dir.y * spd, z: 3 }
+      releaseBall()
+      state.stats.shots[player.team]++
+      break
+    }
+    case 'chipshot': {
+      // Fixed power, lofted arc over GK
+      ball.vel = { x: dir.x * 14, y: dir.y * 14, z: 14 }
+      releaseBall()
+      state.stats.shots[player.team]++
+      break
+    }
+    case 'lowpass': {
+      const spd = kickSpeed(18)
+      ball.vel = { x: dir.x * spd, y: dir.y * spd, z: 0 }
+      releaseBall()
+      // Switch control to nearest teammate toward ball destination (on kick)
+      switchControlToNearest(state, player.team, dir)
+      break
+    }
+    case 'loftedpass': {
+      const spd = kickSpeed(16)
+      ball.vel = { x: dir.x * spd, y: dir.y * spd, z: kickSpeed(8) }
+      releaseBall()
+      switchControlToNearest(state, player.team, dir)
+      break
+    }
+    case 'throughpass': {
+      const spd = kickSpeed(20)
+      ball.vel = { x: dir.x * spd, y: dir.y * spd, z: 2 }
+      releaseBall()
+      switchControlToNearest(state, player.team, dir)
+      break
+    }
+  }
+}
+
+function handleNoBallAction(state: GameState, player: Player, input: PlayerInput): void {
+  const { ball } = state
+
+  switch (input.action) {
+    case 'tackle': {
+      const ballOwner = state.players.find(p => p.id === ball.ownerId)
+      if (!ballOwner || ballOwner.team === player.team) break
+      if (dist2d(player.pos, ballOwner.pos) < FIELD.TACKLE_DIST) {
+        const isShielding = (ballOwner as any).__shielding === true
+        const success = Math.random() > (isShielding ? 0.5 : 0)
+        if (success) {
+          ballOwner.hasBall = false
+          ball.ownerId = null
+          ball.vel = { x: player.facing.x * 5, y: player.facing.y * 5, z: 0 }
+        }
+      }
+      break
+    }
+    case 'slidetackle': {
+      const ballOwner = state.players.find(p => p.id === ball.ownerId)
+      if (!ballOwner || ballOwner.team === player.team) break
+      const range = FIELD.TACKLE_DIST + 1
+      if (dist2d(player.pos, ballOwner.pos) < range) {
+        // Foul if tackling from behind (angle > 120° from attacker's facing)
+        const toTackler = norm2d({ x: player.pos.x - ballOwner.pos.x, y: player.pos.y - ballOwner.pos.y })
+        const dot = toTackler.x * ballOwner.facing.x + toTackler.y * ballOwner.facing.y
+        const fromBehind = dot > 0.5
+        if (fromBehind) {
+          triggerFoul(state, player, ballOwner)
+        } else {
+          ballOwner.hasBall = false
+          ball.ownerId = null
+          ball.vel = { x: player.facing.x * 8, y: player.facing.y * 8, z: 0 }
+        }
+      }
+      player.animState = 'slide'
+      break
+    }
+    case 'gkrush': {
+      // Signal GK to rush (GK AI handles movement)
+      const gk = state.players.find(p => p.team === player.team && p.role === 'gk' && !p.isControlled)
+      if (gk) {
+        (gk as any).__rushing = true
+      }
+      break
+    }
+  }
+}
+
+function triggerFoul(state: GameState, fouler: Player, victim: Player): void {
+  const foulPos = { ...victim.pos }
+  const victimTeam = victim.team
+  const inPA = isInPenaltyArea(foulPos, fouler.team)  // foul in fouler's own PA?
+  const setpieceType = inPA ? 'penalty' : 'freekick'
+  triggerSetpiece(state, setpieceType, victimTeam, foulPos)
+}
+
+function switchControlToNearest(state: GameState, team: 'home' | 'away', dir: Vec2): void {
+  // Estimate ball destination
+  const dest = {
+    x: state.ball.pos.x + dir.x * 12,
+    y: state.ball.pos.y + dir.y * 12,
+  }
+
+  let nearest: Player | null = null
+  let nearestDist = Infinity
+
+  for (const p of state.players) {
+    if (p.team !== team || p.role === 'gk' || p.hasBall) continue
+    const d = dist2d(p.pos, dest)
+    if (d < nearestDist) {
+      nearestDist = d
+      nearest = p
+    }
+  }
+
+  if (nearest) {
+    for (const p of state.players) {
+      if (p.team === team) p.isControlled = false
+    }
+    nearest.isControlled = true
+  }
+}
+
+function checkOffside(state: GameState, passer: Player): void {
+  const attackDir = passer.team === 'home' ? 1 : -1
+
+  // Find last defender's x position (excluding GK)
+  const defenders = state.players.filter(p => p.team !== passer.team && p.role !== 'gk')
+  if (defenders.length === 0) return
+
+  const lastDefX = defenders
+    .map(p => p.pos.x)
+    .sort((a, b) => attackDir === 1 ? b - a : a - b)[0]
+
+  // Check if any attacker is in offside position
+  const attackers = state.players.filter(p =>
+    p.team === passer.team && !p.hasBall && p.role !== 'gk'
+  )
+
+  const offside = attackers.some(a =>
+    attackDir === 1
+      ? a.pos.x > lastDefX && a.pos.x > passer.pos.x
+      : a.pos.x < lastDefX && a.pos.x < passer.pos.x
+  )
+
+  if (offside) {
+    // Indirect freekick for the defending team
+    triggerSetpiece(state, 'freekick', passer.team === 'home' ? 'away' : 'home', {
+      x: passer.pos.x,
+      y: state.ball.pos.y,
+    })
+  }
+}
+
+function checkGoal(state: GameState): boolean {
+  const { ball } = state
+  if (ball.ownerId !== null) return false
+
+  const goalTop = FIELD.CENTER_Y - FIELD.GOAL_WIDTH / 2
+  const goalBot = FIELD.CENTER_Y + FIELD.GOAL_WIDTH / 2
+
+  if (ball.pos.x <= 0 && ball.pos.y >= goalTop && ball.pos.y <= goalBot) {
+    // Away team scored (into home goal)
+    state.score.away++
+    state.stats.shotsOnTarget.away++
+    return true
+  }
+  if (ball.pos.x >= FIELD.W && ball.pos.y >= goalTop && ball.pos.y <= goalBot) {
+    // Home team scored (into away goal)
+    state.score.home++
+    state.stats.shotsOnTarget.home++
+    return true
+  }
+  return false
 }
 
 // ---- Physics helpers ----

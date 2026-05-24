@@ -141,3 +141,53 @@ describe('stamina drain', () => {
     expect(stamina).toBeCloseTo(1.0)
   })
 })
+
+describe('isInPenaltyArea', () => {
+  const FIELD_W = 100, FIELD_H = 60, PA_DEPTH = 16, PA_HALF_WIDTH = 18, CENTER_Y = 30
+
+  function isInPA(pos: {x:number,y:number}, team: 'home'|'away'): boolean {
+    const paLeft = team === 'home' ? 0 : FIELD_W - PA_DEPTH
+    const paRight = team === 'home' ? PA_DEPTH : FIELD_W
+    const paTop = CENTER_Y - PA_HALF_WIDTH
+    const paBottom = CENTER_Y + PA_HALF_WIDTH
+    return pos.x >= paLeft && pos.x <= paRight && pos.y >= paTop && pos.y <= paBottom
+  }
+
+  it('center (50,30) is not in any PA', () => {
+    expect(isInPA({x:50,y:30}, 'home')).toBe(false)
+    expect(isInPA({x:50,y:30}, 'away')).toBe(false)
+  })
+  it('home PA: position near home goal is in home PA', () => {
+    expect(isInPA({x:5, y:30}, 'home')).toBe(true)
+  })
+  it('home PA: x=17 is outside (PA depth=16)', () => {
+    expect(isInPA({x:17, y:30}, 'home')).toBe(false)
+  })
+  it('away PA: near away goal (x=95)', () => {
+    expect(isInPA({x:95, y:30}, 'away')).toBe(true)
+  })
+  it('out of y bounds is not in PA', () => {
+    expect(isInPA({x:5, y:5}, 'home')).toBe(false)
+  })
+})
+
+describe('offside position', () => {
+  function isOffsidePos(attackerX: number, lastDefX: number, team: 'home'|'away'): boolean {
+    const attackDir = team === 'home' ? 1 : -1
+    return attackDir === 1 ? attackerX > lastDefX : attackerX < lastDefX
+  }
+
+  it('home attacker ahead of last defender is offside', () => {
+    expect(isOffsidePos(75, 70, 'home')).toBe(true)
+  })
+  it('home attacker level with defender is onside', () => {
+    expect(isOffsidePos(70, 70, 'home')).toBe(false)
+  })
+  it('home attacker behind defender is onside', () => {
+    expect(isOffsidePos(65, 70, 'home')).toBe(false)
+  })
+  it('away team offside works mirrored', () => {
+    expect(isOffsidePos(25, 30, 'away')).toBe(true)
+    expect(isOffsidePos(35, 30, 'away')).toBe(false)
+  })
+})
