@@ -1,4 +1,121 @@
-export function initHUD(_myTeam: 'home' | 'away') {}
-export function destroyHUD() {}
-export function updateHUDState(_state: import('../types').GameState) {}
-export function showAlert(_text: string) {}
+import type { GameState } from '../types'
+import { FIELD } from '../types'
+
+let ctx: CanvasRenderingContext2D
+let canvas: HTMLCanvasElement
+let animFrame: number | null = null
+let latestState: GameState | null = null
+let myTeamRef: 'home' | 'away' | null = null
+let powerGauge = 0  // 0~1, updated from input
+let alertText = ''
+let alertTimer = 0
+
+export function initHUD(myTeam: 'home' | 'away') {
+  canvas = document.getElementById('hud-canvas') as HTMLCanvasElement
+  ctx = canvas.getContext('2d')!
+  myTeamRef = myTeam
+  resize()
+  window.addEventListener('resize', resize)
+  animFrame = requestAnimationFrame(drawLoop)
+}
+
+export function destroyHUD() {
+  if (animFrame) cancelAnimationFrame(animFrame)
+  window.removeEventListener('resize', resize)
+}
+
+export function updateHUDState(state: GameState) {
+  latestState = state
+}
+
+export function setPowerGauge(v: number) { powerGauge = v }
+
+export function showAlert(text: string) {
+  alertText = text
+  alertTimer = 120  // ticks ~2s at 60fps
+}
+
+function resize() {
+  canvas.width = window.innerWidth
+  canvas.height = window.innerHeight
+}
+
+function drawLoop() {
+  animFrame = requestAnimationFrame(drawLoop)
+  if (!latestState) return
+  ctx.clearRect(0, 0, canvas.width, canvas.height)
+
+  drawScoreTimer(latestState)
+  drawMinimap(latestState)
+  drawAlert()
+
+  if (alertTimer > 0) alertTimer--
+}
+
+function drawScoreTimer(state: GameState) {
+  const { score, timeLeft, half } = state
+  const mins = Math.floor(timeLeft / 60).toString().padStart(2, '0')
+  const secs = Math.floor(timeLeft % 60).toString().padStart(2, '0')
+
+  ctx.save()
+  ctx.fillStyle = 'rgba(0,0,0,0.6)'
+  ctx.roundRect(12, 12, 180, 52, 8)
+  ctx.fill()
+  ctx.fillStyle = '#fff'
+  ctx.font = 'bold 20px sans-serif'
+  ctx.fillText(`${score.home} : ${score.away}`, 22, 38)
+  ctx.font = '14px sans-serif'
+  ctx.fillStyle = '#aaa'
+  ctx.fillText(`${half === 1 ? '전반' : '후반'} ${mins}:${secs}`, 22, 56)
+  ctx.restore()
+}
+
+function drawMinimap(state: GameState) {
+  const mw = 160, mh = 96, mx = canvas.width / 2 - mw / 2, my = canvas.height - mh - 16
+
+  ctx.save()
+  ctx.fillStyle = 'rgba(0,0,0,0.5)'
+  ctx.fillRect(mx, my, mw, mh)
+  ctx.strokeStyle = 'rgba(255,255,255,0.4)'
+  ctx.strokeRect(mx, my, mw, mh)
+
+  // Midline
+  ctx.beginPath()
+  ctx.moveTo(mx + mw / 2, my)
+  ctx.lineTo(mx + mw / 2, my + mh)
+  ctx.strokeStyle = 'rgba(255,255,255,0.2)'
+  ctx.stroke()
+
+  // Players
+  for (const p of state.players) {
+    const px = mx + (p.pos.x / FIELD.W) * mw
+    const py = my + (p.pos.y / FIELD.H) * mh
+    ctx.beginPath()
+    ctx.arc(px, py, p.isControlled ? 4 : 2.5, 0, Math.PI * 2)
+    ctx.fillStyle = p.team === 'home' ? '#3b82f6' : '#ef4444'
+    ctx.fill()
+  }
+
+  // Ball
+  ctx.beginPath()
+  ctx.arc(mx + (state.ball.pos.x / FIELD.W) * mw, my + (state.ball.pos.y / FIELD.H) * mh, 3, 0, Math.PI * 2)
+  ctx.fillStyle = '#fff'
+  ctx.fill()
+  ctx.restore()
+}
+
+function drawAlert() {
+  if (!alertText || alertTimer <= 0) return
+  const alpha = Math.min(alertTimer / 30, 1)
+  ctx.save()
+  ctx.globalAlpha = alpha
+  ctx.fillStyle = 'rgba(0,0,0,0.7)'
+  ctx.font = 'bold 28px sans-serif'
+  ctx.textAlign = 'center'
+  const tw = ctx.measureText(alertText).width
+  ctx.fillRect(canvas.width / 2 - tw / 2 - 12, 80, tw + 24, 40)
+  ctx.fillStyle = '#fff'
+  ctx.fillText(alertText, canvas.width / 2, 108)
+  ctx.textAlign = 'left'
+  ctx.restore()
+}
