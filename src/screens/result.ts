@@ -36,13 +36,13 @@ export function mountResult(el: HTMLElement, state: GameState) {
 
   el.innerHTML = `
     <div style="background:rgba(0,0,0,0.9);padding:clamp(10px,3vw,24px) clamp(12px,4vw,28px);
-      border-radius:12px;text-align:center;width:min(320px,90vw);box-sizing:border-box;
+      border-radius:12px;text-align:center;width:min(400px,94vw);box-sizing:border-box;
       max-height:92vh;overflow-y:auto">
 
-      <div style="display:flex;align-items:center;justify-content:center;gap:7px;margin-bottom:6px">
+      <div style="display:flex;align-items:center;justify-content:center;gap:7px;margin-bottom:6px;flex-wrap:nowrap">
         ${winnerUsername ? `<div style="width:10px;height:10px;border-radius:50%;background:${winnerColor};flex-shrink:0"></div>` : ''}
-        <h2 style="font-size:clamp(14px,4vw,20px);margin:0;color:${winnerColor || '#fff'}">
-          ${winnerUsername ? `${winnerUsername} ${winnerLabel}` : winnerLabel}
+        <h2 style="font-size:clamp(14px,4vw,20px);margin:0;white-space:nowrap">
+          ${winnerUsername ? `<span style="color:${winnerColor}">${winnerUsername}</span> <span style="color:#fff">${winnerLabel}</span>` : `<span style="color:#fff">${winnerLabel}</span>`}
         </h2>
       </div>
 
