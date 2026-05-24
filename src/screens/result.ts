@@ -35,44 +35,45 @@ export function mountResult(el: HTMLElement, state: GameState) {
   const awayPoss = 100 - homePoss
 
   el.innerHTML = `
-    <div style="background:rgba(0,0,0,0.9);padding:clamp(12px,3vw,36px);border-radius:12px;
-      text-align:center;width:min(340px,90vw);box-sizing:border-box;
-      max-height:90vh;overflow-y:auto">
+    <div style="background:rgba(0,0,0,0.9);padding:clamp(10px,3vw,24px) clamp(12px,4vw,28px);
+      border-radius:12px;text-align:center;width:min(320px,90vw);box-sizing:border-box;
+      max-height:92vh;overflow-y:auto">
 
-      <h2 style="font-size:clamp(15px,4vw,24px);margin:0 0 4px">${winnerLabel}</h2>
+      <div style="display:flex;align-items:center;justify-content:center;gap:7px;margin-bottom:6px">
+        ${winnerUsername ? `<div style="width:10px;height:10px;border-radius:50%;background:${winnerColor};flex-shrink:0"></div>` : ''}
+        <h2 style="font-size:clamp(14px,4vw,20px);margin:0;color:${winnerColor || '#fff'}">
+          ${winnerUsername ? `${winnerUsername} ${winnerLabel}` : winnerLabel}
+        </h2>
+      </div>
 
-      ${winnerUsername ? `
-        <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:6px">
-          <div style="width:10px;height:10px;border-radius:50%;background:${winnerColor};flex-shrink:0"></div>
-          <span style="font-size:clamp(13px,3.5vw,18px);font-weight:bold;color:${winnerColor}">${winnerUsername}</span>
-        </div>
-      ` : '<div style="margin-bottom:6px"></div>'}
+      <div style="font-size:clamp(32px,8vw,52px);font-weight:bold;margin:4px 0">${score.home} : ${score.away}</div>
 
-      <div style="font-size:clamp(32px,8vw,56px);font-weight:bold;margin:4px 0">${score.home} : ${score.away}</div>
-
-      <div style="background:#1a1a2e;border-radius:8px;padding:clamp(6px,2vw,14px);
-        margin:8px 0;font-size:clamp(11px,2.8vw,14px)">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
-          <div style="display:flex;align-items:center;gap:5px">
-            <div style="width:8px;height:8px;border-radius:50%;background:${homeColor}"></div>
+      <div style="background:#1a1a2e;border-radius:8px;padding:clamp(6px,2vw,12px);
+        margin:8px 0;font-size:clamp(11px,2.8vw,13px)">
+        <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:3px 6px;align-items:center">
+          <div style="display:flex;align-items:center;gap:4px;justify-content:flex-end">
             <span>${homeUsername}</span>
+            <div style="width:7px;height:7px;border-radius:50%;background:${homeColor};flex-shrink:0"></div>
           </div>
-          <div style="display:flex;align-items:center;gap:5px">
+          <span style="color:#555;font-size:clamp(9px,2.2vw,11px)">팀</span>
+          <div style="display:flex;align-items:center;gap:4px">
+            <div style="width:7px;height:7px;border-radius:50%;background:${awayColor};flex-shrink:0"></div>
             <span>${awayUsername}</span>
-            <div style="width:8px;height:8px;border-radius:50%;background:${awayColor}"></div>
           </div>
-        </div>
-        <div style="display:flex;justify-content:space-between;margin-bottom:4px">
-          <span style="color:#888">점유율</span><span>${homePoss}% / ${awayPoss}%</span>
-        </div>
-        <div style="display:flex;justify-content:space-between">
-          <span style="color:#888">슈팅</span><span>${stats.shots.home} / ${stats.shots.away}</span>
+
+          <span style="text-align:right">${homePoss}%</span>
+          <span style="color:#555;font-size:clamp(9px,2.2vw,11px)">점유율</span>
+          <span style="text-align:left">${awayPoss}%</span>
+
+          <span style="text-align:right">${stats.shots.home}</span>
+          <span style="color:#555;font-size:clamp(9px,2.2vw,11px)">슈팅</span>
+          <span style="text-align:left">${stats.shots.away}</span>
         </div>
       </div>
 
-      <button id="btn-lobby" style="display:block;width:100%;padding:clamp(8px,2vw,12px);
+      <button id="btn-lobby" style="display:block;width:100%;padding:clamp(7px,2vw,10px);
         border-radius:8px;background:#374151;color:#fff;border:none;
-        font-size:clamp(13px,3.5vw,16px);cursor:pointer;font-weight:bold">
+        font-size:clamp(13px,3.5vw,15px);cursor:pointer;font-weight:bold">
         처음으로
       </button>
     </div>

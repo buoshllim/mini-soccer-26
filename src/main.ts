@@ -264,15 +264,21 @@ function showHalftimeOverlay(state: GameState) {
   const homePoss = Math.round((stats.possession.home / (stats.possession.home + stats.possession.away + 1)) * 100)
 
   screenEl.innerHTML = `
-    <div style="background:rgba(0,0,0,0.92);padding:clamp(20px,5vw,36px) clamp(16px,6vw,48px);
-      border-radius:16px;text-align:center;width:min(340px,90vw);box-sizing:border-box">
-      <h2 style="margin-bottom:12px;font-size:clamp(18px,4vw,22px)">하프타임</h2>
-      <div style="font-size:clamp(36px,9vw,48px);font-weight:bold;margin:8px 0">${score.home} : ${score.away}</div>
-      <div style="margin-top:16px;font-size:clamp(12px,3vw,14px);color:#aaa;line-height:2">
-        <div>점유율 ${homePoss}% / ${100 - homePoss}%</div>
-        <div>슈팅 ${stats.shots.home} / ${stats.shots.away}</div>
+    <div style="background:rgba(0,0,0,0.92);padding:clamp(10px,3vw,20px) clamp(14px,5vw,36px);
+      border-radius:16px;text-align:center;width:min(320px,90vw);box-sizing:border-box">
+      <h2 style="margin:0 0 6px;font-size:clamp(16px,4vw,20px)">하프타임</h2>
+      <div style="font-size:clamp(32px,8vw,44px);font-weight:bold;margin:4px 0">${score.home} : ${score.away}</div>
+      <div style="margin-top:10px;font-size:clamp(11px,3vw,13px);color:#aaa">
+        <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:4px 8px;align-items:center">
+          <span style="text-align:right">${homePoss}%</span>
+          <span style="color:#666">점유율</span>
+          <span style="text-align:left">${100 - homePoss}%</span>
+          <span style="text-align:right">${stats.shots.home}</span>
+          <span style="color:#666">슈팅</span>
+          <span style="text-align:left">${stats.shots.away}</span>
+        </div>
       </div>
-      <p style="margin-top:20px;font-size:13px;color:#666">후반전 자동 시작...</p>
+      <p style="margin:8px 0 0;font-size:12px;color:#555">후반전 자동 시작...</p>
     </div>`
   screenEl.classList.remove('hidden')
 }
