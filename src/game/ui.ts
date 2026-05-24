@@ -177,11 +177,11 @@ function drawMinimap(state: GameState) {
     const py = my + ((FIELD.H - p.pos.y) / FIELD.H) * mh
     const color = p.team === 'home' ? homeColor : awayColor
     if (p.isControlled) {
-      ctx.shadowBlur = mob ? 6 : 10
+      ctx.shadowBlur = mob ? 8 : 14
       ctx.shadowColor = color
       ctx.beginPath()
       ctx.arc(px, py, mob ? 3.5 : 5, 0, Math.PI * 2)
-      ctx.fillStyle = '#fff'
+      ctx.fillStyle = color
       ctx.fill()
       ctx.shadowBlur = 0
     } else {
