@@ -257,17 +257,14 @@ function buildGoalNet(frontX: number, dir: number, goalHW: number, depth: number
     pts.push(new THREE.Vector3(frontX, ny, zTop), new THREE.Vector3(backX, ny, zTop))
   }
 
-  // Back net (slanted): from front-ground to back-top (realistic angled shape)
+  // Back panel: vertical rectangle at backX (outside field)
   for (let j = 0; j <= NY; j++) {
     const ny = -goalHW + (goalHW * 2 * j / NY)
-    // Slanted lines: front ground → back top
-    pts.push(new THREE.Vector3(frontX, ny, 0), new THREE.Vector3(backX, ny, zTop))
+    pts.push(new THREE.Vector3(backX, ny, 0), new THREE.Vector3(backX, ny, zTop))
   }
-  for (let i = 0; i <= NX; i++) {
-    const t = i / NX
-    const nx = frontX + dir * depth * t
-    const nz = zTop * t
-    pts.push(new THREE.Vector3(nx, -goalHW, nz), new THREE.Vector3(nx, goalHW, nz))
+  for (let i = 0; i <= NZ; i++) {
+    const nz = zTop * i / NZ
+    pts.push(new THREE.Vector3(backX, -goalHW, nz), new THREE.Vector3(backX, goalHW, nz))
   }
 
   const geo = new THREE.BufferGeometry().setFromPoints(pts)

@@ -187,14 +187,20 @@ export default class SoccerServer implements Party.Server {
       const input = connId ? (this.inputs.get(connId) ?? null) : null
       const player = state.players.find(p => p.team === kickoffTeam && p.isControlled)
 
-      // 'C' key (action='tackle' → lowpass) starts the game with an actual pass.
       if (player && player.hasBall && input?.action === 'tackle') {
-        state.phase = 'playing'  // set before handleBallAction so lowpass guard passes
-        const translated = translateActionForBall(input)
-        handleBallAction(state, player, translated)
-      }
-      // Keep ball attached to kickoff player (immobile)
-      if (player && player.hasBall && state.phase === 'kickoff') {
+        // Inline kickoff pass — bypass handleBallAction to avoid phase-guard issue
+        state.phase = 'playing'
+        const hasDir = input.dx !== 0 || input.dy !== 0
+        const dir = hasDir ? norm2d({ x: input.dx, y: input.dy }) : player.facing
+        const power = clamp(input.power, 0, 1)
+        const spd = 18 * (0.4 + power * 0.6)
+        state.ball.vel = { x: dir.x * spd, y: dir.y * spd, z: 0 }
+        player.hasBall = false
+        state.ball.ownerId = null
+        player.animState = 'kick'
+        switchControlToNearest(state, kickoffTeam, dir)
+      } else if (player && player.hasBall) {
+        // Keep ball attached during kickoff
         state.ball.pos.x = player.pos.x + player.facing.x * 1.2
         state.ball.pos.y = player.pos.y + player.facing.y * 1.2
         state.ball.ownerId = player.id
