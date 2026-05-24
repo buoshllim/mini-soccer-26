@@ -89,6 +89,7 @@ function roundRect(c: CanvasRenderingContext2D, x: number, y: number, w: number,
 
 function drawScoreTimer(state: GameState) {
   const mob = canvas.width < 600
+  const portrait = canvas.height > canvas.width
   const { score, timeLeft, half } = state
   const mins = Math.floor(timeLeft / 60).toString().padStart(2, '0')
   const secs = Math.floor(timeLeft % 60).toString().padStart(2, '0')
@@ -100,12 +101,12 @@ function drawScoreTimer(state: GameState) {
   const homeColor = BADGE_COLORS[homeColorName]
   const awayColor = BADGE_COLORS[awayColorName]
 
-  const boxW = mob ? 176 : 300
-  const boxH = mob ? 30 : 58
+  const boxW = portrait ? 240 : mob ? 176 : 300
+  const boxH = portrait ? 44 : mob ? 30 : 58
   const boxX = 10, boxY = 10
   const midX = boxX + boxW / 2
-  const dotR = mob ? 3 : 8
-  const nameMaxW = mob ? 46 : 88
+  const dotR = portrait ? 5 : mob ? 3 : 8
+  const nameMaxW = portrait ? 64 : mob ? 46 : 88
 
   ctx.save()
 
@@ -115,35 +116,35 @@ function drawScoreTimer(state: GameState) {
 
   // Score (center)
   ctx.fillStyle = '#fff'
-  ctx.font = mob ? 'bold 11px sans-serif' : 'bold 22px sans-serif'
+  ctx.font = portrait ? 'bold 16px sans-serif' : mob ? 'bold 11px sans-serif' : 'bold 22px sans-serif'
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
-  ctx.fillText(`${score.home} : ${score.away}`, midX, boxY + (mob ? 10 : 20))
+  ctx.fillText(`${score.home} : ${score.away}`, midX, boxY + (portrait ? 15 : mob ? 10 : 20))
 
   // Timer below score
   ctx.fillStyle = '#aaa'
-  ctx.font = mob ? '7px sans-serif' : '11px sans-serif'
-  ctx.fillText(`${half === 1 ? '전반' : '후반'} ${mins}:${secs}`, midX, boxY + (mob ? 22 : 42))
+  ctx.font = portrait ? '10px sans-serif' : mob ? '7px sans-serif' : '11px sans-serif'
+  ctx.fillText(`${half === 1 ? '전반' : '후반'} ${mins}:${secs}`, midX, boxY + (portrait ? 33 : mob ? 22 : 42))
 
   // Home: dot + username (left)
   ctx.fillStyle = homeColor
   ctx.beginPath()
-  ctx.arc(boxX + dotR + 3, boxY + (mob ? 10 : 20), dotR, 0, Math.PI * 2)
+  ctx.arc(boxX + dotR + 3, boxY + (portrait ? 15 : mob ? 10 : 20), dotR, 0, Math.PI * 2)
   ctx.fill()
 
   ctx.fillStyle = '#fff'
-  ctx.font = mob ? '7px sans-serif' : 'bold 11px sans-serif'
+  ctx.font = portrait ? '10px sans-serif' : mob ? '7px sans-serif' : 'bold 11px sans-serif'
   ctx.textAlign = 'left'
   ctx.textBaseline = 'middle'
-  ctx.fillText(homeUsername, boxX + dotR * 2 + 4, boxY + (mob ? 10 : 20), nameMaxW)
+  ctx.fillText(homeUsername, boxX + dotR * 2 + 4, boxY + (portrait ? 15 : mob ? 10 : 20), nameMaxW)
 
   // Away: username + dot (right)
   ctx.textAlign = 'right'
-  ctx.fillText(awayUsername, boxX + boxW - dotR * 2 - 4, boxY + (mob ? 10 : 20), nameMaxW)
+  ctx.fillText(awayUsername, boxX + boxW - dotR * 2 - 4, boxY + (portrait ? 15 : mob ? 10 : 20), nameMaxW)
 
   ctx.fillStyle = awayColor
   ctx.beginPath()
-  ctx.arc(boxX + boxW - dotR - 3, boxY + (mob ? 10 : 20), dotR, 0, Math.PI * 2)
+  ctx.arc(boxX + boxW - dotR - 3, boxY + (portrait ? 15 : mob ? 10 : 20), dotR, 0, Math.PI * 2)
   ctx.fill()
 
   ctx.restore()
@@ -151,8 +152,9 @@ function drawScoreTimer(state: GameState) {
 
 function drawMinimap(state: GameState) {
   const mob = canvas.width < 600
-  const mw = mob ? 96 : 150
-  const mh = mob ? 58 : 90
+  const portrait = canvas.height > canvas.width
+  const mw = portrait ? 140 : mob ? 96 : 150
+  const mh = portrait ? 84 : mob ? 58 : 90
   const mx = canvas.width / 2 - mw / 2
   const my = canvas.height - mh - (mob ? 8 : 14)
 
