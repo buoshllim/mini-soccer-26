@@ -684,8 +684,12 @@ function tickGKAI(state: GameState, gk: Player): void {
           // Catch ball
           ball.ownerId = gk.id
           gk.hasBall = true
-          gk.isControlled = true  // Transfer control to human player
           ball.vel = { x: 0, y: 0, z: 0 }
+          // Transfer control: clear all teammates first, then give to GK
+          for (const p of state.players) {
+            if (p.team === gk.team) p.isControlled = false
+          }
+          gk.isControlled = true
         } else {
           // Tackle attacker
           const attacker = state.players.find(p => p.id === ball.ownerId)
