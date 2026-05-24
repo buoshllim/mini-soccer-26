@@ -64,14 +64,18 @@ export function mountLobby(el: HTMLElement, state?: GameState): void {
         <div style="background:rgba(255,255,255,0.06);border-radius:12px;padding:18px;width:100%;box-sizing:border-box">
           <p style="margin:0 0 10px;font-size:12px;color:#888">팀 색상</p>
           <div style="display:flex;gap:10px;justify-content:center">
-            ${colors.map(c => `
-              <button data-color="${c}" style="
+            ${colors.map(c => {
+              const taken = oppSlot?.color === c
+              return `
+              <button data-color="${c}" ${taken ? 'disabled' : ''} style="
                 width:52px;height:52px;border-radius:50%;background:${colorHex[c]};
                 border:${_color === c ? '4px solid #fff' : '4px solid transparent'};
-                cursor:pointer;box-shadow:${_color === c ? `0 0 0 2px ${colorHex[c]}` : 'none'};
+                cursor:${taken ? 'not-allowed' : 'pointer'};
+                box-shadow:${_color === c ? `0 0 0 2px ${colorHex[c]}` : 'none'};
+                opacity:${taken ? '0.25' : '1'};
                 transition:border 0.1s;
-              "></button>
-            `).join('')}
+              "></button>`
+            }).join('')}
           </div>
         </div>
 
@@ -108,6 +112,7 @@ export function mountLobby(el: HTMLElement, state?: GameState): void {
 
   el.querySelectorAll('[data-color]').forEach(btn => {
     btn.addEventListener('click', () => {
+      if ((btn as HTMLButtonElement).disabled) return
       _color = (btn as HTMLElement).dataset.color as TeamColor
       sendLobby({ color: _color })
       mountLobby(el, state)
