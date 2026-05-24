@@ -2,20 +2,16 @@
   "name": "soccer-game",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
-  "directories": {
-    "doc": "docs"
-  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "party:dev": "npx partykit dev",
-    "test": "vitest run party"
+    "test": "vitest run party --passWithNoTests"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
+  "type": "module",
   "dependencies": {
     "nipplejs": "^1.0.3",
     "partykit": "^0.0.115",
