@@ -4,13 +4,13 @@ import { FIELD } from '../src/types'
 
 const TICK_MS = 50
 const DT = TICK_MS / 1000
-const FRICTION = 0.95             // was 0.86 — ball rolls much further
-const WALL_BOUNCE = 0.92          // was 0.82 — very elastic walls
-const PLAYER_SPEED = 9
-const PLAYER_ACCEL = 0.25
-const GK_SPEED = 8
-const GK_RUSH_DIST = 14
-const BALL_PLAYER_RESTITUTION = 0.88  // was 0.72 — bouncier player deflection
+const FRICTION = 0.95
+const WALL_BOUNCE = 0.95          // very elastic walls
+const PLAYER_SPEED = 13
+const PLAYER_ACCEL = 0.28
+const GK_SPEED = 11
+const GK_RUSH_DIST = 22
+const BALL_PLAYER_RESTITUTION = 0.95  // bouncier player deflection
 const GOAL_FREEZE = 1.5           // seconds players are frozen after a goal
 
 export default class SoccerServer implements Party.Server {
@@ -40,6 +40,17 @@ export default class SoccerServer implements Party.Server {
 
     this.assignments.set(conn.id, team)
     conn.send(JSON.stringify({ type: 'assigned', team } satisfies ServerMsg))
+
+    // If game ended and both players reconnected → reset for rematch
+    if (this.homeConnId && this.awayConnId && this.state.phase === 'ended') {
+      this.state = makeInitialState()
+      this.state.lobby = {
+        home: { color: null, ready: false },
+        away: { color: null, ready: false },
+      }
+      this.broadcast({ type: 'state', state: this.state })
+      return
+    }
 
     if (this.homeConnId && this.awayConnId && this.state.phase === 'lobby' && !this.state.lobby) {
       this.state.lobby = {
@@ -78,6 +89,7 @@ export default class SoccerServer implements Party.Server {
       if (!slot) return
       if (msg.color !== undefined) slot.color = msg.color
       if (msg.ready !== undefined) slot.ready = msg.ready
+      if (msg.username !== undefined) slot.username = msg.username
       this.broadcast({ type: 'state', state: this.state })
       this.checkBothReady()
     }
@@ -146,11 +158,11 @@ export default class SoccerServer implements Party.Server {
       }
     }
 
-    // 2. Stun timers — light air friction only, preserve knockback momentum
+    // 2. Stun timers — light friction, preserve knockback momentum longer
     for (const p of state.players) {
       if (p.stunTimer > 0) {
         p.stunTimer = Math.max(0, p.stunTimer - DT)
-        p.vel.x *= 0.95; p.vel.y *= 0.95
+        p.vel.x *= 0.97; p.vel.y *= 0.97
         p.pos.x += p.vel.x * DT; p.pos.y += p.vel.y * DT
         clampToField(p)
       }
@@ -392,20 +404,22 @@ function resolvePlayerCollision(state: GameState, a: Player, b: Player): void {
   const relSpeed = Math.sqrt(rvx * rvx + rvy * rvy)
   const dot = rvx * nx + rvy * ny
 
-  if (dot > 0) {
-    // Super-elastic (1.5×): players fly apart harder than they came together
-    const impulse = dot * 1.5
-    a.vel.x += impulse * nx; a.vel.y += impulse * ny
-    b.vel.x -= impulse * nx; b.vel.y -= impulse * ny
+  // dot < 0 means they're approaching along the collision normal — apply bounce
+  if (dot < 0) {
+    // Super-elastic: e=2 bounce factor. impulse = -dot * (1+e)/2 = -dot * 1.5
+    const impulse = -dot * 1.5  // positive value
+    a.vel.x -= impulse * nx; a.vel.y -= impulse * ny  // push a away from b
+    b.vel.x += impulse * nx; b.vel.y += impulse * ny  // push b away from a
   }
 
-  // Stun + ball release on hard collision
+  // Stun + ball release on hard collision — duration scales with impact speed
   if (relSpeed > FIELD.STUN_SPEED_THRESHOLD && a.stunTimer <= 0 && b.stunTimer <= 0) {
-    a.stunTimer = FIELD.STUN_DURATION
-    b.stunTimer = FIELD.STUN_DURATION
+    const stunSecs = Math.min(0.4 + relSpeed * 0.07, 2.5)
+    a.stunTimer = stunSecs
+    b.stunTimer = stunSecs
     if (state.ball.ownerId === a.id || state.ball.ownerId === b.id) {
       state.ball.ownerId = null
-      state.ball.vel = { x: (Math.random() - 0.5) * 10, y: (Math.random() - 0.5) * 10 }
+      state.ball.vel = { x: (Math.random() - 0.5) * 14, y: (Math.random() - 0.5) * 14 }
     }
   }
 }
@@ -416,38 +430,55 @@ function tickFieldAI(state: GameState, p: Player): void {
   const { ball } = state
   const myGoalX = p.team === 'home' ? FIELD.GK_HOME_X : FIELD.GK_AWAY_X
   const oppGoalX = p.team === 'home' ? FIELD.W : 0
+  const ballInOwnHalf = p.team === 'home' ? ball.pos.x < FIELD.CENTER_X : ball.pos.x > FIELD.CENTER_X
 
-  let tx: number, ty: number
+  let tx: number, ty: number, aiSpeed: number
 
   if (p.role === 'fw') {
+    // Chase ball anywhere, very aggressive
     tx = ball.pos.x; ty = ball.pos.y
+    aiSpeed = PLAYER_SPEED * 0.97
   } else if (p.role === 'mf') {
-    tx = clamp(ball.pos.x, 30, 70)
-    ty = clamp(ball.pos.y, 8, 52)
+    // Full field tracking, stay at least 12 units from own goal
+    const ownBound = p.team === 'home' ? myGoalX + 12 : FIELD.W - 12
+    const oppBound = p.team === 'home' ? FIELD.W - 8 : 8
+    tx = clamp(ball.pos.x, Math.min(ownBound, oppBound), Math.max(ownBound, oppBound))
+    ty = ball.pos.y
+    aiSpeed = PLAYER_SPEED * 0.93
   } else {
-    // df: stay own half
-    const midLimit = p.team === 'home' ? FIELD.CENTER_X - 5 : FIELD.CENTER_X + 5
-    tx = clamp(ball.pos.x, myGoalX + 8, midLimit)
-    ty = clamp(ball.pos.y, 8, 52)
+    // DF: press ball when it's in own half, hold compact position when in opp half
+    if (ballInOwnHalf) {
+      // Intercept — track ball but stay between ball and own goal
+      // home: clamp to [12, 50]; away: clamp to [50, 88] (correct direction per team)
+      const dfLo = p.team === 'home' ? myGoalX + 8 : FIELD.CENTER_X
+      const dfHi = p.team === 'home' ? FIELD.CENTER_X : myGoalX - 8
+      tx = clamp(ball.pos.x, dfLo, dfHi)
+      ty = ball.pos.y
+    } else {
+      // Hold position ~22 units from goal, shadow ball Y to stay ready
+      tx = p.team === 'home' ? 22 : 78
+      ty = clamp(ball.pos.y, 12, 48)
+    }
+    aiSpeed = PLAYER_SPEED * 0.91
   }
 
   const dx = tx - p.pos.x, dy = ty - p.pos.y
   const d = Math.sqrt(dx * dx + dy * dy)
-  if (d > 1) {
-    const speed = PLAYER_SPEED * 0.88
+  if (d > 0.5) {
     const nx = dx / d, ny = dy / d
-    p.vel.x += (nx * speed - p.vel.x) * PLAYER_ACCEL
-    p.vel.y += (ny * speed - p.vel.y) * PLAYER_ACCEL
+    p.vel.x += (nx * aiSpeed - p.vel.x) * PLAYER_ACCEL
+    p.vel.y += (ny * aiSpeed - p.vel.y) * PLAYER_ACCEL
     p.pos.x += p.vel.x * DT; p.pos.y += p.vel.y * DT
     p.facing = { x: nx, y: ny }
     clampToField(p)
   }
 
+  // Kick toward goal immediately when AI picks up ball
   if (p.id === state.ball.ownerId) {
     const dir = norm2d({ x: oppGoalX - p.pos.x, y: FIELD.CENTER_Y - p.pos.y })
-    const spread = (Math.random() - 0.5) * 0.6
+    const spread = (Math.random() - 0.5) * 0.5
     const angle = Math.atan2(dir.y, dir.x) + spread
-    const spd = FIELD.KICK_MIN_SPEED + Math.random() * (FIELD.KICK_MAX_SPEED - FIELD.KICK_MIN_SPEED) * 0.6
+    const spd = FIELD.KICK_MIN_SPEED + Math.random() * (FIELD.KICK_MAX_SPEED - FIELD.KICK_MIN_SPEED) * 0.65
     state.ball.vel = { x: Math.cos(angle) * spd, y: Math.sin(angle) * spd }
     state.ball.ownerId = null
   }
@@ -470,7 +501,7 @@ function tickGKAI(state: GameState, gk: Player): void {
     if (d < FIELD.PLAYER_RADIUS * 2) {
       const spread = (Math.random() - 0.5) * 0.7
       const angle = Math.atan2(FIELD.CENTER_Y - gk.pos.y, oppGoalX - gk.pos.x) + spread
-      const spd = 22 + Math.random() * 10
+      const spd = 32 + Math.random() * 20
       state.ball.vel = { x: Math.cos(angle) * spd, y: Math.sin(angle) * spd }
       state.ball.ownerId = null
     }

@@ -11,6 +11,7 @@ let animFrameId: number | null = null
 
 // Meshes
 const playerMeshes = new Map<string, THREE.Group>()
+const indicatorMeshes = new Map<string, THREE.Mesh>()
 let ballMesh: THREE.Mesh | null = null
 let latestState: GameState | null = null
 let rendererMyTeam: 'home' | 'away' | null = null
@@ -44,6 +45,9 @@ export function startGame(initialState: GameState): void {
   buildBall()
   syncPlayers(initialState)
 
+  const threeCanvas = document.getElementById('three-canvas') as HTMLCanvasElement
+  if (threeCanvas) threeCanvas.style.display = 'block'
+
   window.addEventListener('resize', onResize)
   window.addEventListener('wheel', onWheel, { passive: false })
   window.addEventListener('touchstart', onTouchStart, { passive: true })
@@ -59,6 +63,8 @@ export function stopGame(): void {
   // Clear meshes
   playerMeshes.forEach(mesh => scene?.remove(mesh))
   playerMeshes.clear()
+  indicatorMeshes.forEach(mesh => scene?.remove(mesh))
+  indicatorMeshes.clear()
   if (ballMesh && scene) scene.remove(ballMesh)
   ballMesh = null
   rendererMyTeam = null
@@ -72,6 +78,9 @@ export function stopGame(): void {
   lastRenderTime = 0
   window.removeEventListener('resize', onResize)
   window.removeEventListener('wheel', onWheel)
+  // Hide canvas so the soccer field doesn't linger behind other screens
+  const threeCanvas = document.getElementById('three-canvas') as HTMLCanvasElement
+  if (threeCanvas) threeCanvas.style.display = 'none'
 }
 
 export function setRendererTeam(team: 'home' | 'away' | null): void {
@@ -83,6 +92,7 @@ export function updateGameState(state: GameState): void {
   if (!scene) return
   syncPlayers(state)
   syncBall(state)
+  syncIndicators(state)
 }
 
 // ─── Coordinate conversion ───────────────────────────────────────────────────
@@ -398,6 +408,45 @@ function syncBall(state: GameState): void {
   ballMesh.position.set(wx, wy, 0.7)  // fixed height, no z-axis
 }
 
+// Floating cone above controlled field players — gold for mine, pink for opponent
+function syncIndicators(state: GameState): void {
+  if (!scene) return
+  const myTeam = rendererMyTeam
+  const controlledIds = new Set<string>()
+
+  for (const player of state.players) {
+    if (!player.isControlled || player.role === 'gk') continue
+    controlledIds.add(player.id)
+
+    const isMyPlayer = player.team === myTeam
+    const color = isMyPlayer ? 0xFFD700 : 0xFF6699
+
+    let mesh = indicatorMeshes.get(player.id)
+    if (!mesh) {
+      const geo = new THREE.ConeGeometry(0.5, 1.2, 6)
+      geo.rotateX(Math.PI)  // tip points downward
+      mesh = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color, emissive: color, emissiveIntensity: 0.4 }))
+      scene.add(mesh)
+      indicatorMeshes.set(player.id, mesh)
+    } else {
+      const mat = mesh.material as THREE.MeshLambertMaterial
+      mat.color.setHex(color)
+      mat.emissive.setHex(color)
+    }
+
+    const [wx, wy] = gameToWorld(player.pos.x, player.pos.y)
+    mesh.userData.wx = wx
+    mesh.userData.wy = wy
+  }
+
+  for (const [id, mesh] of indicatorMeshes) {
+    if (!controlledIds.has(id)) {
+      scene.remove(mesh)
+      indicatorMeshes.delete(id)
+    }
+  }
+}
+
 // ─── Render loop ──────────────────────────────────────────────────────────────
 
 let lastRenderTime = 0
@@ -414,6 +463,12 @@ function renderLoop(): void {
     syncBall(latestState)
     rollBall(latestState, dt)
     tickCamera(camera, latestState)
+  }
+
+  // Bob indicators every frame for smooth animation
+  const bobZ = 5.2 + Math.sin(now * 0.004) * 0.55
+  for (const mesh of indicatorMeshes.values()) {
+    mesh.position.set(mesh.userData.wx, mesh.userData.wy, bobZ)
   }
 
   renderer.render(scene, camera)

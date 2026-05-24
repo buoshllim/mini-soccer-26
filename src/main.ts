@@ -71,7 +71,7 @@ export function sendInput(input: PlayerInput) {
   socket.send(JSON.stringify(msg))
 }
 
-export function sendLobby(payload: { color?: TeamColor; ready?: boolean }) {
+export function sendLobby(payload: { color?: TeamColor; ready?: boolean; username?: string }) {
   if (!socket) return
   const msg: ClientMsg = { type: 'lobby', ...payload }
   socket.send(JSON.stringify(msg))

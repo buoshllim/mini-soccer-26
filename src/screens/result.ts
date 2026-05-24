@@ -23,9 +23,6 @@ export function mountResult(el: HTMLElement, state: GameState) {
         <div style="display:flex;justify-content:space-between;margin-bottom:8px">
           <span>점유율</span><span>${homePoss}% / ${awayPoss}%</span>
         </div>
-        <div style="display:flex;justify-content:space-between;margin-bottom:8px">
-          <span>슈팅</span><span>${stats.shots.home} / ${stats.shots.away}</span>
-        </div>
         <div style="display:flex;justify-content:space-between">
           <span>슈팅</span><span>${stats.shots.home} / ${stats.shots.away}</span>
         </div>

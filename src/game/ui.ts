@@ -9,7 +9,6 @@ let ctx: CanvasRenderingContext2D
 let canvas: HTMLCanvasElement
 let animFrame: number | null = null
 let latestState: GameState | null = null
-let myTeamRef: 'home' | 'away' | null = null
 let powerGauge = 0  // 0~1, updated from input
 let alertText = ''
 let alertTimer = 0
@@ -19,7 +18,6 @@ export function initHUD(myTeam: 'home' | 'away') {
   if (animFrame !== null) return  // guard against double-init
   canvas = document.getElementById('hud-canvas') as HTMLCanvasElement
   ctx = canvas.getContext('2d')!
-  myTeamRef = myTeam
   resize()
   window.addEventListener('resize', resize)
   animFrame = requestAnimationFrame(drawLoop)
@@ -67,7 +65,6 @@ function drawLoop() {
   ctx.clearRect(0, 0, canvas.width, canvas.height)
 
   drawScoreTimer(latestState)
-  drawPlayerBadge(latestState)
   drawMinimap(latestState)
   drawConfetti()
   drawAlert()
@@ -76,20 +73,76 @@ function drawLoop() {
   if (alertTimer > 0) alertTimer--
 }
 
+function roundRect(c: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+  c.beginPath()
+  c.moveTo(x + r, y)
+  c.lineTo(x + w - r, y)
+  c.quadraticCurveTo(x + w, y, x + w, y + r)
+  c.lineTo(x + w, y + h - r)
+  c.quadraticCurveTo(x + w, y + h, x + w - r, y + h)
+  c.lineTo(x + r, y + h)
+  c.quadraticCurveTo(x, y + h, x, y + h - r)
+  c.lineTo(x, y + r)
+  c.quadraticCurveTo(x, y, x + r, y)
+  c.closePath()
+}
+
 function drawScoreTimer(state: GameState) {
   const { score, timeLeft, half } = state
   const mins = Math.floor(timeLeft / 60).toString().padStart(2, '0')
   const secs = Math.floor(timeLeft % 60).toString().padStart(2, '0')
 
+  const homeUsername = (state.lobby?.home as any)?.username || 'Home'
+  const awayUsername = (state.lobby?.away as any)?.username || 'Away'
+  const homeColorName = (state.lobby?.home?.color ?? 'blue') as TeamColor
+  const awayColorName = (state.lobby?.away?.color ?? 'red') as TeamColor
+  const homeColor = BADGE_COLORS[homeColorName]
+  const awayColor = BADGE_COLORS[awayColorName]
+
+  const cx = canvas.width / 2
+  const boxW = 360, boxH = 62
+  const boxX = cx - boxW / 2, boxY = 12
+
   ctx.save()
-  ctx.fillStyle = 'rgba(0,0,0,0.6)'
-  ctx.fillRect(12, 12, 180, 52)
+
+  // Background pill
+  ctx.fillStyle = 'rgba(0,0,0,0.68)'
+  roundRect(ctx, boxX, boxY, boxW, boxH, 12)
+  ctx.fill()
+
+  // Score (center, large)
   ctx.fillStyle = '#fff'
-  ctx.font = 'bold 20px sans-serif'
-  ctx.fillText(`${score.home} : ${score.away}`, 22, 38)
-  ctx.font = '14px sans-serif'
+  ctx.font = 'bold 26px sans-serif'
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillText(`${score.home} : ${score.away}`, cx, boxY + 21)
+
+  // Timer below score
   ctx.fillStyle = '#aaa'
-  ctx.fillText(`${half === 1 ? '전반' : '후반'} ${mins}:${secs}`, 22, 56)
+  ctx.font = '12px sans-serif'
+  ctx.fillText(`${half === 1 ? '전반' : '후반'} ${mins}:${secs}`, cx, boxY + 46)
+
+  // Home: colored dot + username (left side)
+  ctx.fillStyle = homeColor
+  ctx.beginPath()
+  ctx.arc(boxX + 18, boxY + 22, 9, 0, Math.PI * 2)
+  ctx.fill()
+
+  ctx.fillStyle = '#fff'
+  ctx.font = 'bold 13px sans-serif'
+  ctx.textAlign = 'left'
+  ctx.textBaseline = 'middle'
+  ctx.fillText(homeUsername.slice(0, 9), boxX + 33, boxY + 22)
+
+  // Away: username + colored dot (right side)
+  ctx.textAlign = 'right'
+  ctx.fillText(awayUsername.slice(0, 9), boxX + boxW - 33, boxY + 22)
+
+  ctx.fillStyle = awayColor
+  ctx.beginPath()
+  ctx.arc(boxX + boxW - 18, boxY + 22, 9, 0, Math.PI * 2)
+  ctx.fill()
+
   ctx.restore()
 }
 
@@ -154,40 +207,6 @@ function drawConfetti() {
     p.x += p.vx; p.y += p.vy; p.vy += 0.12; p.life -= 0.012
   })
   confetti = confetti.filter(p => p.life > 0 && p.y < (canvas?.height ?? 1000) + 20)
-}
-
-function drawPlayerBadge(state: GameState) {
-  if (!myTeamRef) return
-  const username = ((window as any).__username as string) || ''
-  if (!username) return
-
-  const colorName = (state.lobby?.[myTeamRef]?.color ?? (myTeamRef === 'home' ? 'blue' : 'red')) as TeamColor
-  const bgColor = BADGE_COLORS[colorName] ?? '#3b82f6'
-
-  ctx.save()
-  ctx.font = 'bold 14px sans-serif'
-  const tw = ctx.measureText(username).width
-  const padX = 12, padY = 6
-  const bw = tw + padX * 2
-  const bh = 30
-  const bx = 12
-  const by = 72  // just below the score/timer box
-
-  // Pill background
-  ctx.fillStyle = bgColor
-  ctx.beginPath()
-  ctx.arc(bx + bh / 2, by + bh / 2, bh / 2, Math.PI / 2, Math.PI * 3 / 2)
-  ctx.arc(bx + bw - bh / 2, by + bh / 2, bh / 2, Math.PI * 3 / 2, Math.PI / 2)
-  ctx.closePath()
-  ctx.fill()
-
-  // White name text
-  ctx.fillStyle = '#fff'
-  ctx.textAlign = 'left'
-  ctx.textBaseline = 'middle'
-  ctx.fillText(username, bx + padX, by + bh / 2)
-  ctx.textBaseline = 'alphabetic'
-  ctx.restore()
 }
 
 function drawKeyHints() {

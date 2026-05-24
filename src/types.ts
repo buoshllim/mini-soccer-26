@@ -20,8 +20,8 @@ export type Ball = {
 }
 
 export type LobbyState = {
-  home: { color: TeamColor | null; ready: boolean } | null
-  away: { color: TeamColor | null; ready: boolean } | null
+  home: { color: TeamColor | null; ready: boolean; username?: string } | null
+  away: { color: TeamColor | null; ready: boolean; username?: string } | null
 }
 
 export type GamePhase = 'lobby' | 'countdown' | 'playing' | 'halftime' | 'ended'
@@ -51,7 +51,7 @@ export type ServerMsg =
 
 export type ClientMsg =
   | { type: 'input'; input: PlayerInput }
-  | { type: 'lobby'; color?: TeamColor; ready?: boolean }
+  | { type: 'lobby'; color?: TeamColor; ready?: boolean; username?: string }
 
 export const FIELD = {
   W: 100, H: 60,
@@ -61,9 +61,9 @@ export const FIELD = {
   PLAYER_RADIUS: 1.2,
   BALL_RADIUS: 0.7,
   BALL_SLOW_SPEED: 4,        // below this → dribble-attach
-  KICK_MIN_SPEED: 14,
-  KICK_MAX_SPEED: 42,
-  STUN_DURATION: 0.55,       // seconds after hard collision
+  KICK_MIN_SPEED: 22,
+  KICK_MAX_SPEED: 65,
+  STUN_DURATION: 0.55,       // used by renderer to normalize tilt animation
   STUN_SPEED_THRESHOLD: 6,   // relative speed (units/sec) to cause stun
   GK_HOME_X: 4,
   GK_AWAY_X: 96,

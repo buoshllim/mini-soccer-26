@@ -14,7 +14,7 @@ export function mountHome(el: HTMLElement) {
         border-radius:10px;background:#374151;color:#fff;border:none;cursor:pointer">
         방 참가
       </button>
-      <input id="room-code" placeholder="6자리 숫자 입력" maxlength="6" inputmode="numeric" pattern="[0-9]*"
+      <input id="room-code" placeholder="4자리 숫자 입력" maxlength="4" inputmode="numeric" pattern="[0-9]*"
         style="display:none;width:220px;margin:0 auto 8px;padding:13px;text-align:center;font-size:22px;
         border-radius:10px;border:2px solid #555;background:#1a1a2e;color:#fff;letter-spacing:6px;
         box-sizing:border-box;" />
@@ -25,7 +25,7 @@ export function mountHome(el: HTMLElement) {
     </div>`
 
   el.querySelector('#btn-create')!.addEventListener('click', () => {
-    const code = String(Math.floor(Math.random() * 900000) + 100000)
+    const code = String(Math.floor(Math.random() * 9000) + 1000)
     joinRoom(code)
   })
 
@@ -41,7 +41,7 @@ export function mountHome(el: HTMLElement) {
   })
 
   const tryJoin = () => {
-    if (codeInput.value.length === 6) joinRoom(codeInput.value)
+    if (codeInput.value.length === 4) joinRoom(codeInput.value)
   }
 
   codeInput.addEventListener('keydown', (e: KeyboardEvent) => {
@@ -49,8 +49,8 @@ export function mountHome(el: HTMLElement) {
   })
 
   codeInput.addEventListener('input', () => {
-    codeInput.value = codeInput.value.replace(/\D/g, '').slice(0, 6)
-    enterBtn.style.opacity = codeInput.value.length === 6 ? '1' : '0.4'
+    codeInput.value = codeInput.value.replace(/\D/g, '').slice(0, 4)
+    enterBtn.style.opacity = codeInput.value.length === 4 ? '1' : '0.4'
   })
 
   enterBtn.addEventListener('click', tryJoin)

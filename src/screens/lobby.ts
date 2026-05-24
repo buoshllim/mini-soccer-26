@@ -43,9 +43,6 @@ export function mountLobby(el: HTMLElement, state?: GameState): void {
           <div style="font-size:52px;font-weight:900;letter-spacing:10px;color:#fff;
             background:rgba(255,255,255,0.08);padding:16px 24px;border-radius:12px;
             font-family:monospace">${roomCode}</div>
-          <button id="copy-btn" style="margin-top:10px;padding:8px 20px;border-radius:6px;
-            background:rgba(255,255,255,0.1);color:#aaa;border:1px solid rgba(255,255,255,0.2);
-            cursor:pointer;font-size:13px">복사</button>
         </div>
         <p style="color:#555;font-size:13px;margin:0">상대방 접속 대기 중...</p>
       ` : ''}
@@ -96,25 +93,18 @@ export function mountLobby(el: HTMLElement, state?: GameState): void {
     </div>
   `
 
-  el.querySelector('#copy-btn')?.addEventListener('click', () => {
-    navigator.clipboard.writeText(roomCode).then(() => {
-      const btn = el.querySelector<HTMLButtonElement>('#copy-btn')!
-      btn.textContent = '복사됨 ✓'
-      setTimeout(() => { btn.textContent = '복사' }, 2000)
-    })
-  })
-
   const usernameInput = el.querySelector<HTMLInputElement>('#username-input')
   usernameInput?.addEventListener('input', () => {
     _username = usernameInput.value
     ;(window as any).__username = _username
+    if (_color) sendLobby({ username: _username })
   })
 
   el.querySelectorAll('[data-color]').forEach(btn => {
     btn.addEventListener('click', () => {
       if ((btn as HTMLButtonElement).disabled) return
       _color = (btn as HTMLElement).dataset.color as TeamColor
-      sendLobby({ color: _color })
+      sendLobby({ color: _color, username: _username || undefined })
       mountLobby(el, state)
     })
   })
@@ -122,6 +112,6 @@ export function mountLobby(el: HTMLElement, state?: GameState): void {
   el.querySelector('#ready-btn')?.addEventListener('click', () => {
     if (!_color) return
     const isReady = !(mySlot?.ready ?? false)
-    sendLobby({ color: _color, ready: isReady })
+    sendLobby({ color: _color, ready: isReady, username: _username || undefined })
   })
 }
