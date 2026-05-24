@@ -342,7 +342,7 @@ function tickPlayerMovement(player: Player, input: PlayerInput | null): void {
     player.pos.x += dir.x * speed * DT
     player.pos.y += dir.y * speed * DT
     player.facing = dir
-    player.animState = sprinting ? 'run' : 'run'
+    player.animState = 'run'
   } else {
     player.animState = 'idle'
   }
