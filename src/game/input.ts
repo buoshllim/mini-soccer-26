@@ -184,13 +184,13 @@ function setupMobileControls(): void {
     btnArea.appendChild(btn)
   }
 
-  addBtn('Shoot', ' ')
-  addBtn('C', 'c')
-  addBtn('X', 'x')
-  addBtn('Z', 'z')
+  addBtn('슛', ' ')
+  addBtn('패스', 'c')
+  addBtn('로프트', 'x')
+  addBtn('스루', 'z')
 
   const sprintBtn = document.createElement('button')
-  sprintBtn.textContent = '⚡'
+  sprintBtn.textContent = '달리기'
   sprintBtn.style.cssText = `
     position: absolute; right: 188px; bottom: 16px;
     width: 52px; height: 52px; border-radius: 50%; border: 2px solid rgba(255,200,0,0.5);
@@ -202,7 +202,7 @@ function setupMobileControls(): void {
   mobileContainer.appendChild(sprintBtn)
 
   const switchBtn = document.createElement('button')
-  switchBtn.textContent = '↔'
+  switchBtn.textContent = '교체'
   switchBtn.style.cssText = `
     position: absolute; right: 188px; bottom: 76px;
     width: 52px; height: 52px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.4);

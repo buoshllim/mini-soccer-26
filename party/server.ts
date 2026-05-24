@@ -181,29 +181,23 @@ export default class SoccerServer implements Party.Server {
     this.lastTickAt = Date.now()
     const { state } = this
 
-    // Kickoff: only kickoff team's player can move; any action starts the game
     if (state.phase === 'kickoff') {
-      const kickoffTeam = state.kickoffTeam
-      if (kickoffTeam) {
-        const connId = [...this.assignments.entries()].find(([, t]) => t === kickoffTeam)?.[0]
-        const input = connId ? (this.inputs.get(connId) ?? null) : null
-        const player = state.players.find(p => p.team === kickoffTeam && p.isControlled)
+      const kickoffTeam = state.kickoffTeam!
+      const connId = [...this.assignments.entries()].find(([, t]) => t === kickoffTeam)?.[0]
+      const input = connId ? (this.inputs.get(connId) ?? null) : null
+      const player = state.players.find(p => p.team === kickoffTeam && p.isControlled)
 
-        if (player && input) {
-          tickPlayerMovement(player, input)
-          // Keep ball attached to kickoff player
-          if (player.hasBall) {
-            state.ball.pos.x = player.pos.x + player.facing.x * 1.2
-            state.ball.pos.y = player.pos.y + player.facing.y * 1.2
-            state.ball.ownerId = player.id
-          }
-          // Any action starts the game
-          if (input.action && player.hasBall) {
-            const translated = translateActionForBall(input)
-            handleBallAction(state, player, translated)
-            state.phase = 'playing'
-          }
-        }
+      // Only 'C' key (action='tackle' → translates to lowpass) starts the game. No movement.
+      if (player && player.hasBall && input?.action === 'tackle') {
+        const translated = translateActionForBall(input)
+        handleBallAction(state, player, translated)
+        state.phase = 'playing'
+      }
+      // Keep ball attached to kickoff player (immobile)
+      if (player && player.hasBall && state.phase === 'kickoff') {
+        state.ball.pos.x = player.pos.x + player.facing.x * 1.2
+        state.ball.pos.y = player.pos.y + player.facing.y * 1.2
+        state.ball.ownerId = player.id
       }
       this.broadcast({ type: 'state', state })
       return
@@ -285,15 +279,19 @@ export default class SoccerServer implements Party.Server {
         }
       }
 
-      // Tab: switch controlled player
+      // Tab: switch controlled player (only when defending)
       if (player.isControlled && input?.switchPlayer) {
-        const teammates = state.players
-          .filter(p => p.team === player.team && p.role !== 'gk' && !p.isControlled)
-          .sort((a, b) => dist2d(a.pos, state.ball.pos) - dist2d(b.pos, state.ball.pos))
+        const ballOwner = state.players.find(p => p.id === state.ball.ownerId)
+        const myTeamHasBall = ballOwner?.team === player.team
+        if (!myTeamHasBall) {
+          const teammates = state.players
+            .filter(p => p.team === player.team && p.role !== 'gk' && !p.isControlled)
+            .sort((a, b) => dist2d(a.pos, state.ball.pos) - dist2d(b.pos, state.ball.pos))
 
-        if (teammates.length > 0) {
-          player.isControlled = false
-          teammates[0].isControlled = true
+          if (teammates.length > 0) {
+            player.isControlled = false
+            teammates[0].isControlled = true
+          }
         }
       }
     }
@@ -309,12 +307,27 @@ export default class SoccerServer implements Party.Server {
       const kickoffTeam: 'home' | 'away' = state.score.home > state.score.away ? 'away' : 'home'
       state.kickoffTeam = kickoffTeam
       state.phase = 'kickoff'
-      // Reset controlled: 1st outfielder of each team
-      for (const p of state.players) {
-        p.hasBall = false
-        const isFirst = state.players.filter(pp => pp.team === p.team && pp.role !== 'gk').indexOf(p) === 0
-        p.isControlled = isFirst
+
+      // Rebuild starting positions from formation data
+      if (state.lobby?.home && state.lobby?.away) {
+        const fresh = buildPlayers(state.lobby.home, state.lobby.away)
+        for (const p of state.players) {
+          const f = fresh.find(f => f.id === p.id)
+          if (f) { p.pos = { ...f.pos }; p.facing = { ...f.facing } }
+          p.hasBall = false
+          p.animState = 'idle'
+        }
+      } else {
+        for (const p of state.players) { p.hasBall = false }
       }
+
+      // Reset controlled: first outfielder of each team
+      for (const p of state.players) p.isControlled = false
+      const hFirst = state.players.find(p => p.team === 'home' && p.role !== 'gk')
+      const aFirst = state.players.find(p => p.team === 'away' && p.role !== 'gk')
+      if (hFirst) hFirst.isControlled = true
+      if (aFirst) aFirst.isControlled = true
+
       // Attach ball to kickoff team's controlled player at center
       const kickoffPlayer = state.players.find(p => p.team === kickoffTeam && p.isControlled)
       state.ball = {
@@ -326,6 +339,7 @@ export default class SoccerServer implements Party.Server {
         kickoffPlayer.hasBall = true
         kickoffPlayer.pos = { x: FIELD.CENTER_X, y: FIELD.CENTER_Y }
       }
+
       this.broadcast({ type: 'state', state })
       return
     }
@@ -389,6 +403,10 @@ export default class SoccerServer implements Party.Server {
         state.ball.ownerId = closest.id
         closest.hasBall = true
         state.ball.vel = { x: 0, y: 0, z: 0 }
+        // Auto-switch control to whoever picks up the ball
+        for (const p of state.players) {
+          if (p.team === closest.team) p.isControlled = (p.id === closest.id)
+        }
       }
     }
 
@@ -500,8 +518,8 @@ function gridSlotToStartPos(slotIdx: number, team: 'home' | 'away'): Vec2 {
   const row = Math.floor(slotIdx / 3)
 
   const yPositions = [15, 30, 45] as const  // left, center, right
-  const xPositionsHome = [72, 58, 35] as const  // FWD, MID, DEF
-  const xPositionsAway = [28, 42, 65] as const
+  const xPositionsHome = [42, 28, 14] as const  // FWD, MID, DEF — all in home half (0-50)
+  const xPositionsAway = [58, 72, 86] as const  // FWD, MID, DEF — all in away half (50-100)
 
   const y = yPositions[col]
   const x = team === 'home' ? xPositionsHome[row] : xPositionsAway[row]
@@ -623,7 +641,7 @@ function handleNoBallAction(state: GameState, player: Player, input: PlayerInput
   switch (input.action) {
     case 'tackle': {
       const ballOwner = state.players.find(p => p.id === ball.ownerId)
-      if (!ballOwner || ballOwner.team === player.team) break
+      if (!ballOwner || ballOwner.team === player.team || ballOwner.role === 'gk') break
       if (dist2d(player.pos, ballOwner.pos) < FIELD.TACKLE_DIST) {
         const isShielding = (ballOwner as any).__shielding === true
         const success = Math.random() > (isShielding ? 0.5 : 0)
@@ -637,7 +655,7 @@ function handleNoBallAction(state: GameState, player: Player, input: PlayerInput
     }
     case 'slidetackle': {
       const ballOwner = state.players.find(p => p.id === ball.ownerId)
-      if (!ballOwner || ballOwner.team === player.team) break
+      if (!ballOwner || ballOwner.team === player.team || ballOwner.role === 'gk') break
       const range = FIELD.TACKLE_DIST + 1
       if (dist2d(player.pos, ballOwner.pos) < range) {
         // Foul if tackling from behind (angle > 120° from attacker's facing)
@@ -950,7 +968,7 @@ function tickGKAI(state: GameState, gk: Player): void {
   )
   const dy = targetY - gk.pos.y
   if (Math.abs(dy) > 0.1) {
-    gk.pos.y += Math.sign(dy) * PLAYER_SPEED * 0.85 * DT
+    gk.pos.y += Math.sign(dy) * PLAYER_SPEED * 1.0 * DT
     gk.animState = 'run'
   } else {
     gk.animState = 'idle'
@@ -978,7 +996,7 @@ function tickFieldAI(state: GameState, player: Player): void {
       if (teamAttacking) {
         // Chase ball if close enough, else position near opponent goal
         const dBall = dist2d(player.pos, { x: ball.pos.x, y: ball.pos.y })
-        if (dBall < 15) {
+        if (dBall < 25) {
           targetX = ball.pos.x
           targetY = ball.pos.y
         } else {
@@ -1024,8 +1042,8 @@ function tickFieldAI(state: GameState, player: Player): void {
   const d = dist2d(player.pos, target)
   if (d > 0.5) {
     const dir = norm2d({ x: target.x - player.pos.x, y: target.y - player.pos.y })
-    player.pos.x += dir.x * PLAYER_SPEED * 0.85 * DT
-    player.pos.y += dir.y * PLAYER_SPEED * 0.85 * DT
+    player.pos.x += dir.x * PLAYER_SPEED * 0.92 * DT
+    player.pos.y += dir.y * PLAYER_SPEED * 0.92 * DT
     player.facing = dir
     player.animState = 'run'
   } else {
@@ -1038,7 +1056,7 @@ function tickFieldAI(state: GameState, player: Player): void {
 
   // Auto-tackle: if near ball carrier from opponent team
   const carrier = state.players.find(p => p.id === ball.ownerId)
-  if (carrier && carrier.team !== player.team) {
+  if (carrier && carrier.team !== player.team && carrier.role !== 'gk') {
     const dCarrier = dist2d(player.pos, carrier.pos)
     if (dCarrier < FIELD.TACKLE_DIST) {
       const success = Math.random() > 0.72  // 28% chance per tick = ~1.4 per second

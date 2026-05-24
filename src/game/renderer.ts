@@ -13,6 +13,8 @@ let animFrameId: number | null = null
 const playerMeshes = new Map<string, THREE.Group>()
 let ballMesh: THREE.Mesh | null = null
 let latestState: GameState | null = null
+let indicatorMesh: THREE.Mesh | null = null
+let rendererMyTeam: 'home' | 'away' | null = null
 
 // Team colors (lobby color → hex)
 const TEAM_COLORS: Record<string, number> = {
@@ -41,6 +43,7 @@ export function startGame(initialState: GameState): void {
   buildLighting()
   buildField()
   buildBall()
+  buildIndicator()
   syncPlayers(initialState)
 
   window.addEventListener('resize', onResize)
@@ -58,6 +61,8 @@ export function stopGame(): void {
   playerMeshes.clear()
   if (ballMesh && scene) scene.remove(ballMesh)
   ballMesh = null
+  if (indicatorMesh && scene) { scene.remove(indicatorMesh); indicatorMesh = null }
+  rendererMyTeam = null
   if (renderer) renderer.dispose()
   renderer = null
   scene = null
@@ -65,6 +70,10 @@ export function stopGame(): void {
   latestState = null
   window.removeEventListener('resize', onResize)
   window.removeEventListener('wheel', onWheel)
+}
+
+export function setRendererTeam(team: 'home' | 'away' | null): void {
+  rendererMyTeam = team
 }
 
 export function updateGameState(state: GameState): void {
@@ -208,10 +217,26 @@ function buildGoal(x: number): void {
 function buildBall(): void {
   if (!scene) return
   const geo = new THREE.SphereGeometry(0.7, 16, 12)
-  const mat = new THREE.MeshLambertMaterial({ color: 0xfafafa })
+  const mat = new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 80, specular: 0x999999 })
   ballMesh = new THREE.Mesh(geo, mat)
   ballMesh.castShadow = true
+
+  // Wireframe overlay for soccer ball look
+  const wireGeo = new THREE.SphereGeometry(0.73, 8, 6)
+  const wireMat = new THREE.MeshBasicMaterial({ color: 0x111111, wireframe: true, transparent: true, opacity: 0.55 })
+  ballMesh.add(new THREE.Mesh(wireGeo, wireMat))
+
   scene.add(ballMesh)
+}
+
+function buildIndicator(): void {
+  if (!scene) return
+  const geo = new THREE.ConeGeometry(0.45, 1.4, 4)
+  geo.rotateX(Math.PI)  // point downward
+  const mat = new THREE.MeshBasicMaterial({ color: 0x00ff88 })
+  indicatorMesh = new THREE.Mesh(geo, mat)
+  indicatorMesh.visible = false
+  scene.add(indicatorMesh)
 }
 
 // ─── Character building ───────────────────────────────────────────────────────
@@ -251,7 +276,7 @@ function buildPlayerMesh(color: number): THREE.Group {
   group.add(rLeg)
 
   // Scale down to appropriate field size
-  group.scale.setScalar(0.4)
+  group.scale.setScalar(0.65)
 
   return group
 }
@@ -289,6 +314,24 @@ function syncPlayers(state: GameState): void {
     if (!state.players.find(p => p.id === id)) {
       scene.remove(mesh)
       playerMeshes.delete(id)
+    }
+  }
+
+  // Indicator above controlled player (only while defending)
+  if (indicatorMesh) {
+    const ballOwner = state.players.find(p => p.id === state.ball.ownerId)
+    const myTeamHasBall = rendererMyTeam && ballOwner?.team === rendererMyTeam
+    const showIndicator = !myTeamHasBall && rendererMyTeam !== null
+    const myControlled = showIndicator
+      ? state.players.find(p => p.team === rendererMyTeam && p.isControlled)
+      : null
+
+    if (myControlled) {
+      const [ix, iy] = gameToWorld(myControlled.pos.x, myControlled.pos.y)
+      indicatorMesh.position.set(ix, iy, 7)
+      indicatorMesh.visible = true
+    } else {
+      indicatorMesh.visible = false
     }
   }
 }

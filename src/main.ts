@@ -4,8 +4,8 @@ import type { GameState, ServerMsg, ClientMsg, PlayerInput, TeamColor, Formation
 import { mountHome } from './screens/home'
 import { mountLobby, resetLobbyLocalState } from './screens/lobby'
 import { mountResult, setResultRoomId } from './screens/result'
-import { startGame, stopGame, updateGameState } from './game/renderer'
-import { initHUD, destroyHUD, updateHUDState } from './game/ui'
+import { startGame, stopGame, updateGameState, setRendererTeam } from './game/renderer'
+import { initHUD, destroyHUD, updateHUDState, spawnConfetti } from './game/ui'
 import { initInput, destroyInput } from './game/input'
 
 const PARTY_HOST = import.meta.env.DEV
@@ -26,8 +26,10 @@ export function goHome() {
   socket = null
   if (s) s.close()
   activePhase = null; myTeam = null; currentRoomId = null
+  setRendererTeam(null)
   stopGame(); destroyInput(); destroyHUD()
   gameActive = false
+  prevScore = { home: 0, away: 0 }
   resetLobbyLocalState()
   hideReconnectOverlay()
   screenEl.classList.remove('hidden')
@@ -46,6 +48,7 @@ export function joinRoom(roomId: string) {
     const msg: ServerMsg = JSON.parse(e.data)
     if (msg.type === 'assigned') {
       myTeam = msg.team
+      setRendererTeam(msg.team)
     } else if (msg.type === 'state') {
       onStateUpdate(msg.state)
     } else if (msg.type === 'error') {
@@ -75,6 +78,8 @@ export function sendLobby(payload: { color?: TeamColor; jerseyNumbers?: [number,
 
 const screenEl = document.getElementById('screen')!
 let gameActive = false
+let prevScore = { home: 0, away: 0 }
+let ceremonyTimer: ReturnType<typeof setTimeout> | null = null
 
 // Web Audio whistle
 function playWhistle() {
@@ -94,6 +99,103 @@ function playWhistle() {
   } catch { /* ignore if AudioContext unavailable */ }
 }
 
+function playFanfare() {
+  try {
+    const ac = new AudioContext()
+    const notes = [
+      [523.25, 0, 0.18], [659.25, 0.18, 0.18], [783.99, 0.36, 0.18],
+      [1046.5, 0.54, 0.35], [783.99, 0.65, 0.22], [1046.5, 0.85, 0.6],
+    ] as const
+    notes.forEach(([freq, start, dur]) => {
+      const osc = ac.createOscillator()
+      const gain = ac.createGain()
+      osc.connect(gain); gain.connect(ac.destination)
+      osc.type = 'square'
+      osc.frequency.value = freq
+      gain.gain.setValueAtTime(0.22, ac.currentTime + start)
+      gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + start + dur)
+      osc.start(ac.currentTime + start)
+      osc.stop(ac.currentTime + start + dur + 0.05)
+    })
+  } catch { /* ignore */ }
+}
+
+function ensureCeremonyStyles() {
+  if (document.getElementById('ceremony-css')) return
+  const s = document.createElement('style')
+  s.id = 'ceremony-css'
+  s.textContent = `
+    @keyframes goalBounce {
+      0%   { transform: scale(0.3) rotate(-8deg); opacity: 0; }
+      60%  { transform: scale(1.15) rotate(3deg); opacity: 1; }
+      100% { transform: scale(1) rotate(0deg); opacity: 1; }
+    }
+    @keyframes scoreSlide {
+      0%   { transform: translateY(30px); opacity: 0; }
+      100% { transform: translateY(0); opacity: 1; }
+    }
+  `
+  document.head.appendChild(s)
+}
+
+function showGoalCeremony(score: { home: number; away: number }) {
+  ensureCeremonyStyles()
+  document.getElementById('goal-ceremony')?.remove()
+  if (ceremonyTimer) { clearTimeout(ceremonyTimer); ceremonyTimer = null }
+
+  const div = document.createElement('div')
+  div.id = 'goal-ceremony'
+  div.style.cssText = [
+    'position:fixed', 'inset:0', 'z-index:160',
+    'display:flex', 'flex-direction:column',
+    'align-items:center', 'justify-content:center',
+    'background:radial-gradient(ellipse at center,rgba(255,120,0,0.35) 0%,rgba(0,0,0,0.72) 70%)',
+    'pointer-events:all',
+  ].join(';')
+  div.innerHTML = `
+    <div style="font-size:96px;font-weight:900;color:#ffd700;letter-spacing:6px;
+      text-shadow:0 0 60px #ff8800,0 0 20px #ff4400,0 4px 0 #aa5500;
+      animation:goalBounce 0.5s cubic-bezier(0.34,1.56,0.64,1) forwards">GOAL!</div>
+    <div style="font-size:52px;font-weight:bold;color:#fff;margin-top:12px;
+      text-shadow:0 2px 12px rgba(0,0,0,0.9);
+      animation:scoreSlide 0.4s 0.3s ease-out both">${score.home} : ${score.away}</div>
+    <button id="skip-btn" style="margin-top:28px;padding:10px 36px;border-radius:8px;
+      background:rgba(255,255,255,0.15);color:#fff;border:2px solid rgba(255,255,255,0.4);
+      font-size:15px;cursor:pointer;letter-spacing:2px">SKIP</button>
+  `
+  document.body.appendChild(div)
+
+  const dismiss = () => {
+    div.remove()
+    if (ceremonyTimer) { clearTimeout(ceremonyTimer); ceremonyTimer = null }
+  }
+  div.querySelector('#skip-btn')!.addEventListener('click', dismiss)
+  ceremonyTimer = setTimeout(dismiss, 5000)
+
+  // Confetti via ui module
+  spawnConfetti()
+}
+
+function showKickoffOverlay() {
+  document.getElementById('kickoff-text')?.remove()
+  const div = document.createElement('div')
+  div.id = 'kickoff-text'
+  div.style.cssText = [
+    'position:fixed', 'inset:0', 'z-index:155',
+    'display:flex', 'align-items:center', 'justify-content:center',
+    'pointer-events:none',
+  ].join(';')
+  div.innerHTML = `<div style="font-size:54px;font-weight:900;color:#fff;letter-spacing:4px;
+    text-shadow:0 0 30px #00aaff,0 2px 0 #0055aa;opacity:1;transition:opacity 0.8s">KICK OFF!</div>`
+  document.body.appendChild(div)
+  // Fade out and remove
+  setTimeout(() => {
+    const inner = div.querySelector('div') as HTMLElement | null
+    if (inner) inner.style.opacity = '0'
+    setTimeout(() => div.remove(), 900)
+  }, 1500)
+}
+
 function showReconnectOverlay() {
   if (document.getElementById('reconnect-overlay')) return
   const el = document.createElement('div')
@@ -109,6 +211,12 @@ function hideReconnectOverlay() {
 
 function onStateUpdate(state: GameState) {
   if (gameActive) {
+    // Detect goal
+    if (state.score.home !== prevScore.home || state.score.away !== prevScore.away) {
+      showGoalCeremony(state.score)
+      playFanfare()
+    }
+    prevScore = { ...state.score }
     updateGameState(state)
     updateHUDState(state)
   }
@@ -154,6 +262,7 @@ function onStateUpdate(state: GameState) {
     // Whistle on every kickoff
     if (state.phase === 'kickoff' && prevPhase !== 'kickoff') {
       playWhistle()
+      showKickoffOverlay()
     }
   }
 }

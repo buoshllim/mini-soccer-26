@@ -9,6 +9,7 @@ let myTeamRef: 'home' | 'away' | null = null
 let powerGauge = 0  // 0~1, updated from input
 let alertText = ''
 let alertTimer = 0
+let confetti: Array<{x:number;y:number;vx:number;vy:number;color:string;size:number;life:number}> = []
 
 export function initHUD(myTeam: 'home' | 'away') {
   if (animFrame !== null) return  // guard against double-init
@@ -32,6 +33,20 @@ export function updateHUDState(state: GameState) {
 
 export function setPowerGauge(v: number) { powerGauge = v }
 
+export function spawnConfetti() {
+  for (let i = 0; i < 90; i++) {
+    confetti.push({
+      x: Math.random() * (canvas?.width ?? 800),
+      y: -20,
+      vx: (Math.random() - 0.5) * 7,
+      vy: Math.random() * 4 + 2,
+      color: `hsl(${Math.random() * 360},85%,60%)`,
+      size: Math.random() * 8 + 4,
+      life: 1,
+    })
+  }
+}
+
 export function showAlert(text: string) {
   alertText = text
   alertTimer = 120  // ticks ~2s at 60fps
@@ -49,7 +64,9 @@ function drawLoop() {
 
   drawScoreTimer(latestState)
   drawMinimap(latestState)
+  drawConfetti()
   drawAlert()
+  drawKeyHints()
 
   if (alertTimer > 0) alertTimer--
 }
@@ -118,5 +135,42 @@ function drawAlert() {
   ctx.fillStyle = '#fff'
   ctx.fillText(alertText, canvas.width / 2, 108)
   ctx.textAlign = 'left'
+  ctx.restore()
+}
+
+function drawConfetti() {
+  confetti.forEach(p => {
+    if (!ctx) return
+    ctx.save()
+    ctx.globalAlpha = Math.max(0, p.life)
+    ctx.fillStyle = p.color
+    ctx.fillRect(p.x - p.size / 2, p.y - p.size / 3, p.size, p.size * 0.55)
+    ctx.restore()
+    p.x += p.vx; p.y += p.vy; p.vy += 0.12; p.life -= 0.012
+  })
+  confetti = confetti.filter(p => p.life > 0 && p.y < (canvas?.height ?? 1000) + 20)
+}
+
+function drawKeyHints() {
+  if (!ctx || !canvas) return
+  const hints = [
+    ['↑↓←→', '이동'], ['Space', '슛'], ['C', '패스'],
+    ['X', '로프트'], ['Z', '스루패스'], ['Tab', '교체(수비)'], ['Shift', '달리기'],
+  ]
+  const bh = 34
+  ctx.save()
+  ctx.fillStyle = 'rgba(0,0,0,0.55)'
+  ctx.fillRect(0, canvas.height - bh, canvas.width, bh)
+  const cellW = canvas.width / hints.length
+  hints.forEach(([key, label], i) => {
+    const cx = cellW * i + cellW / 2
+    ctx.font = 'bold 11px sans-serif'
+    ctx.textAlign = 'center'
+    ctx.fillStyle = '#e0e0e0'
+    ctx.fillText(`[${key}]`, cx, canvas.height - 20)
+    ctx.font = '10px sans-serif'
+    ctx.fillStyle = '#888'
+    ctx.fillText(label, cx, canvas.height - 7)
+  })
   ctx.restore()
 }
