@@ -481,25 +481,36 @@ function renderLoop(): void {
     mesh.position.set(mesh.userData.wx, mesh.userData.wy, bobZ)
   }
 
-  // Running animation — swing arms/legs based on speed
+  // Running animation — visible from top-down camera via Z-bobbing + leg lift
   if (latestState) {
     for (const player of latestState.players) {
       const mesh = playerMeshes.get(player.id)
       if (!mesh) continue
       const { lArmPivot, rArmPivot, lLegPivot, rLegPivot } = mesh.userData
-      if (!lArmPivot) continue
+      if (!lLegPivot) continue
+
       if (player.stunTimer > 0) {
-        lArmPivot.rotation.x = 0; rArmPivot.rotation.x = 0
-        lLegPivot.rotation.x = 0; rLegPivot.rotation.x = 0
+        mesh.position.z = 0
+        lLegPivot.position.z = 2.2; rLegPivot.position.z = 2.2
+        if (lArmPivot) { lArmPivot.rotation.x = 0; rArmPivot.rotation.x = 0 }
       } else {
         const speed = Math.sqrt(player.vel.x ** 2 + player.vel.y ** 2)
-        const freq = 0.006 + (speed / 13) * 0.010
-        const amp = Math.min(speed / 8, 1) * 0.5
-        const swing = Math.sin(now * freq) * amp
-        lArmPivot.rotation.x = swing
-        rArmPivot.rotation.x = -swing
-        lLegPivot.rotation.x = -swing * 0.8
-        rLegPivot.rotation.x = swing * 0.8
+        const amp = Math.min(speed / 13, 1)
+        const t = now * (0.006 + amp * 0.010)
+
+        // Body bounce (up/down, clearly visible from above)
+        mesh.position.z = amp * Math.abs(Math.sin(t)) * 0.35
+
+        // Alternate leg lift — one goes up while other stays down
+        const phase = Math.sin(t)
+        lLegPivot.position.z = 2.2 + (phase > 0 ? phase * amp * 0.9 : 0)
+        rLegPivot.position.z = 2.2 + (phase < 0 ? -phase * amp * 0.9 : 0)
+
+        // Arm counter-swing (rotation.x, adds subtle depth motion)
+        if (lArmPivot) {
+          lArmPivot.rotation.x = phase * amp * 0.45
+          rArmPivot.rotation.x = -phase * amp * 0.45
+        }
       }
     }
   }
