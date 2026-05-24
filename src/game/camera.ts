@@ -25,15 +25,15 @@ export function tickCamera(camera: THREE.PerspectiveCamera, state: GameState): v
 
   camera.updateProjectionMatrix()
   camera.position.x = camTargetX
-  camera.position.y = portrait ? -67 : -38
+  camera.position.y = portrait ? -70 : -38
   camera.position.z = camTargetZ
   camera.lookAt(camTargetX, portrait ? 0 : -12, 0)
 }
 
 export function resetCamera(camera: THREE.PerspectiveCamera): void {
   const portrait = window.innerHeight > window.innerWidth
-  camera.position.set(0, portrait ? -67 : -38, portrait ? 95 : 45)
+  camera.position.set(0, portrait ? -70 : -38, portrait ? 100 : 45)
   camera.lookAt(0, portrait ? 0 : -12, 0)
   camTargetX = 0
-  camTargetZ = portrait ? 95 : 45
+  camTargetZ = portrait ? 100 : 45
 }
