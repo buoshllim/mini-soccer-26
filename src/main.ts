@@ -82,7 +82,10 @@ function onStateUpdate(state: GameState) {
   }
 
   // Screen transitions only on phase change
-  if (state.phase === activePhase) return
+  if (state.phase === activePhase) {
+    if (state.phase === 'lobby') mountLobby(screenEl, state)
+    return
+  }
   activePhase = state.phase
 
   if (state.phase === 'lobby' || state.phase === 'countdown') {

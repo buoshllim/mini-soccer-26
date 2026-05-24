@@ -33,11 +33,12 @@ export default class SoccerServer implements Party.Server {
     const team = this.assignments.size === 0 ? 'home' : 'away'
     this.assignments.set(conn.id, team)
     conn.send(JSON.stringify({ type: 'assigned', team } satisfies ServerMsg))
-    conn.send(JSON.stringify({ type: 'state', state: this.state } satisfies ServerMsg))
 
     if (this.assignments.size === 2 && this.state.phase === 'lobby') {
       this.initLobby()
     }
+
+    conn.send(JSON.stringify({ type: 'state', state: this.state } satisfies ServerMsg))
   }
 
   onClose(conn: Party.Connection) {
