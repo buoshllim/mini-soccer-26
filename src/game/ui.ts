@@ -88,6 +88,7 @@ function roundRect(c: CanvasRenderingContext2D, x: number, y: number, w: number,
 }
 
 function drawScoreTimer(state: GameState) {
+  const mob = canvas.width < 600
   const { score, timeLeft, half } = state
   const mins = Math.floor(timeLeft / 60).toString().padStart(2, '0')
   const secs = Math.floor(timeLeft % 60).toString().padStart(2, '0')
@@ -99,55 +100,61 @@ function drawScoreTimer(state: GameState) {
   const homeColor = BADGE_COLORS[homeColorName]
   const awayColor = BADGE_COLORS[awayColorName]
 
-  const cx = canvas.width / 2
-  const boxW = 360, boxH = 62
-  const boxX = cx - boxW / 2, boxY = 12
+  const boxW = mob ? 190 : 300
+  const boxH = mob ? 44 : 58
+  const boxX = 10, boxY = 10
+  const midX = boxX + boxW / 2
+  const dotR = mob ? 6 : 8
+  const nameLen = mob ? 6 : 8
 
   ctx.save()
 
-  // Background pill
   ctx.fillStyle = 'rgba(0,0,0,0.68)'
-  roundRect(ctx, boxX, boxY, boxW, boxH, 12)
+  roundRect(ctx, boxX, boxY, boxW, boxH, 10)
   ctx.fill()
 
-  // Score (center, large)
+  // Score (center)
   ctx.fillStyle = '#fff'
-  ctx.font = 'bold 26px sans-serif'
+  ctx.font = mob ? 'bold 18px sans-serif' : 'bold 22px sans-serif'
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
-  ctx.fillText(`${score.home} : ${score.away}`, cx, boxY + 21)
+  ctx.fillText(`${score.home} : ${score.away}`, midX, boxY + (mob ? 15 : 20))
 
   // Timer below score
   ctx.fillStyle = '#aaa'
-  ctx.font = '12px sans-serif'
-  ctx.fillText(`${half === 1 ? '전반' : '후반'} ${mins}:${secs}`, cx, boxY + 46)
+  ctx.font = mob ? '9px sans-serif' : '11px sans-serif'
+  ctx.fillText(`${half === 1 ? '전반' : '후반'} ${mins}:${secs}`, midX, boxY + (mob ? 33 : 42))
 
-  // Home: colored dot + username (left side)
+  // Home: dot + username (left)
   ctx.fillStyle = homeColor
   ctx.beginPath()
-  ctx.arc(boxX + 18, boxY + 22, 9, 0, Math.PI * 2)
+  ctx.arc(boxX + dotR + 4, boxY + (mob ? 15 : 20), dotR, 0, Math.PI * 2)
   ctx.fill()
 
   ctx.fillStyle = '#fff'
-  ctx.font = 'bold 13px sans-serif'
+  ctx.font = mob ? '9px sans-serif' : 'bold 11px sans-serif'
   ctx.textAlign = 'left'
   ctx.textBaseline = 'middle'
-  ctx.fillText(homeUsername.slice(0, 9), boxX + 33, boxY + 22)
+  ctx.fillText(homeUsername.slice(0, nameLen), boxX + dotR * 2 + 7, boxY + (mob ? 15 : 20))
 
-  // Away: username + colored dot (right side)
+  // Away: username + dot (right)
   ctx.textAlign = 'right'
-  ctx.fillText(awayUsername.slice(0, 9), boxX + boxW - 33, boxY + 22)
+  ctx.fillText(awayUsername.slice(0, nameLen), boxX + boxW - dotR * 2 - 7, boxY + (mob ? 15 : 20))
 
   ctx.fillStyle = awayColor
   ctx.beginPath()
-  ctx.arc(boxX + boxW - 18, boxY + 22, 9, 0, Math.PI * 2)
+  ctx.arc(boxX + boxW - dotR - 4, boxY + (mob ? 15 : 20), dotR, 0, Math.PI * 2)
   ctx.fill()
 
   ctx.restore()
 }
 
 function drawMinimap(state: GameState) {
-  const mw = 160, mh = 96, mx = canvas.width / 2 - mw / 2, my = canvas.height - mh - 16
+  const mob = canvas.width < 600
+  const mw = mob ? 96 : 150
+  const mh = mob ? 58 : 90
+  const mx = canvas.width / 2 - mw / 2
+  const my = canvas.height - mh - (mob ? 8 : 14)
 
   ctx.save()
   ctx.fillStyle = 'rgba(0,0,0,0.5)'
@@ -162,19 +169,21 @@ function drawMinimap(state: GameState) {
   ctx.strokeStyle = 'rgba(255,255,255,0.2)'
   ctx.stroke()
 
-  // Players
+  // Players — Y flipped to match 3D camera (north = top of minimap)
   for (const p of state.players) {
     const px = mx + (p.pos.x / FIELD.W) * mw
-    const py = my + (p.pos.y / FIELD.H) * mh
+    const py = my + ((FIELD.H - p.pos.y) / FIELD.H) * mh
     ctx.beginPath()
-    ctx.arc(px, py, p.isControlled ? 4 : 2.5, 0, Math.PI * 2)
+    ctx.arc(px, py, p.isControlled ? (mob ? 3 : 4) : (mob ? 1.8 : 2.5), 0, Math.PI * 2)
     ctx.fillStyle = p.team === 'home' ? '#3b82f6' : '#ef4444'
     ctx.fill()
   }
 
-  // Ball
+  // Ball — Y flipped
+  const bx = mx + (state.ball.pos.x / FIELD.W) * mw
+  const by = my + ((FIELD.H - state.ball.pos.y) / FIELD.H) * mh
   ctx.beginPath()
-  ctx.arc(mx + (state.ball.pos.x / FIELD.W) * mw, my + (state.ball.pos.y / FIELD.H) * mh, 3, 0, Math.PI * 2)
+  ctx.arc(bx, by, mob ? 2 : 3, 0, Math.PI * 2)
   ctx.fillStyle = '#fff'
   ctx.fill()
   ctx.restore()
