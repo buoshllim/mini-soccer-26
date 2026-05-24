@@ -4,8 +4,8 @@ export function mountHome(el: HTMLElement) {
   el.innerHTML = `
     <div style="text-align:center;padding:48px 32px;background:rgba(0,0,0,0.85);border-radius:16px;min-width:320px">
       <div style="font-size:56px;margin-bottom:8px">⚽</div>
-      <h1 style="font-size:32px;font-weight:bold;margin-bottom:6px">Chaos Soccer</h1>
-      <p style="color:#888;margin-bottom:32px;font-size:14px">4v4 아케이드 축구</p>
+      <h1 style="font-size:32px;font-weight:bold;margin-bottom:6px">Mini Soccer</h1>
+      <p style="color:#888;margin-bottom:32px;font-size:14px">실시간 4v4 축구</p>
       <button id="btn-create" style="display:block;width:220px;margin:0 auto 12px;padding:14px;font-size:16px;
         border-radius:10px;background:#6366f1;color:#fff;border:none;cursor:pointer;font-weight:bold">
         방 만들기
