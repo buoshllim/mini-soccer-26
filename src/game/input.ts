@@ -105,12 +105,23 @@ function setupMobileControls(): void {
     'background:rgba(255,140,0,0.7);color:#fff;font-size:54px;',
     'pointer-events:all;touch-action:none;',
   ].join('')
-  kickBtn.addEventListener('touchstart', () => { kickStart = Date.now() }, { passive: true })
-  kickBtn.addEventListener('touchend', () => {
+  const kickPress = () => {
+    kickStart = Date.now()
+    kickBtn.style.transform = 'scale(0.88)'
+    kickBtn.style.background = 'rgba(255,180,0,0.95)'
+    kickBtn.style.borderColor = 'rgba(255,255,255,0.9)'
+  }
+  const kickRelease = () => {
     if (kickStart !== null) {
       pendingKickPower = Math.min((Date.now() - kickStart) / 1200, 1)
       kickStart = null
     }
-  }, { passive: true })
+    kickBtn.style.transform = ''
+    kickBtn.style.background = 'rgba(255,140,0,0.7)'
+    kickBtn.style.borderColor = 'rgba(255,255,255,0.5)'
+  }
+  kickBtn.addEventListener('touchstart', kickPress, { passive: true })
+  kickBtn.addEventListener('touchend', kickRelease, { passive: true })
+  kickBtn.addEventListener('touchcancel', kickRelease, { passive: true })
   mobileContainer.appendChild(kickBtn)
 }

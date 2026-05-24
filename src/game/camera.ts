@@ -27,7 +27,8 @@ export function tickCamera(camera: THREE.PerspectiveCamera, state: GameState): v
   camera.updateProjectionMatrix()
   camera.position.x = camTargetX
   camera.position.z = camTargetZ
-  camera.lookAt(camTargetX, -12, 0)
+  // 세로 모드는 lookAt Y를 낮춰 시선을 비스듬하게 — 덜 탑뷰
+  camera.lookAt(camTargetX, portrait ? -40 : -12, 0)
 }
 
 export function resetCamera(camera: THREE.PerspectiveCamera): void {
