@@ -11,8 +11,7 @@ export function tickCamera(camera: THREE.PerspectiveCamera, state: GameState): v
   const portrait = window.innerHeight > window.innerWidth
 
   if (portrait) {
-    // 세로 모드: 최대한 줌아웃, 수평 트래킹 거의 없애서 양쪽 골대 항상 보이게
-    const targetZ = 110
+    const targetZ = 80
     camTargetX += (wx * 0.03 - camTargetX) * 0.04
     camTargetZ += (targetZ - camTargetZ) * 0.04
     camera.fov = 80
@@ -26,15 +25,15 @@ export function tickCamera(camera: THREE.PerspectiveCamera, state: GameState): v
 
   camera.updateProjectionMatrix()
   camera.position.x = camTargetX
-  camera.position.y = portrait ? -77 : -38
+  camera.position.y = portrait ? -56 : -38
   camera.position.z = camTargetZ
   camera.lookAt(camTargetX, portrait ? 0 : -12, 0)
 }
 
 export function resetCamera(camera: THREE.PerspectiveCamera): void {
   const portrait = window.innerHeight > window.innerWidth
-  camera.position.set(0, portrait ? -77 : -38, portrait ? 110 : 45)
+  camera.position.set(0, portrait ? -56 : -38, portrait ? 80 : 45)
   camera.lookAt(0, portrait ? 0 : -12, 0)
   camTargetX = 0
-  camTargetZ = portrait ? 110 : 45
+  camTargetZ = portrait ? 80 : 45
 }
