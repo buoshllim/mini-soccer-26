@@ -20,7 +20,7 @@ export function mountLobby(el: HTMLElement, state?: GameState): void {
 
   const colors: TeamColor[] = ['blue', 'red', 'green', 'yellow']
   const colorHex: Record<TeamColor, string> = {
-    blue: '#3b82f6', red: '#ef4444', green: '#16a34a', yellow: '#eab308',
+    blue: '#3b82f6', red: '#ef4444', green: '#16a34a', yellow: '#facc15',
   }
 
   if (!_color && mySlot?.color) _color = mySlot.color

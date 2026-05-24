@@ -7,7 +7,7 @@ export function mountResult(el: HTMLElement, state: GameState) {
   const { score, stats } = state
 
   const colorHex: Record<TeamColor, string> = {
-    blue: '#3b82f6', red: '#ef4444', green: '#16a34a', yellow: '#eab308',
+    blue: '#3b82f6', red: '#ef4444', green: '#16a34a', yellow: '#facc15',
   }
 
   const homeUsername = (state.lobby?.home as any)?.username || 'Home'

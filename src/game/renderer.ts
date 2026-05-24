@@ -21,7 +21,7 @@ const TEAM_COLORS: Record<string, number> = {
   blue: 0x3b82f6,
   red: 0xef4444,
   green: 0x16a34a,
-  yellow: 0xeab308,
+  yellow: 0xfacc15,
 }
 
 export function startGame(initialState: GameState): void {

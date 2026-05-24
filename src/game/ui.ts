@@ -2,7 +2,7 @@ import type { GameState, TeamColor } from '../types'
 import { FIELD } from '../types'
 
 const BADGE_COLORS: Record<TeamColor, string> = {
-  blue: '#3b82f6', red: '#ef4444', green: '#16a34a', yellow: '#eab308',
+  blue: '#3b82f6', red: '#ef4444', green: '#16a34a', yellow: '#facc15',
 }
 
 let ctx: CanvasRenderingContext2D
@@ -100,51 +100,50 @@ function drawScoreTimer(state: GameState) {
   const homeColor = BADGE_COLORS[homeColorName]
   const awayColor = BADGE_COLORS[awayColorName]
 
-  const boxW = mob ? 220 : 300
-  const boxH = mob ? 36 : 58
+  const boxW = mob ? 176 : 300
+  const boxH = mob ? 30 : 58
   const boxX = 10, boxY = 10
   const midX = boxX + boxW / 2
-  const dotR = mob ? 4 : 8
-  // max pixel width available for each name (half the box minus score center minus dot area)
-  const nameMaxW = mob ? 62 : 88
+  const dotR = mob ? 3 : 8
+  const nameMaxW = mob ? 46 : 88
 
   ctx.save()
 
-  ctx.fillStyle = 'rgba(0,0,0,0.45)'
+  ctx.fillStyle = mob ? 'rgba(0,0,0,0.25)' : 'rgba(0,0,0,0.45)'
   roundRect(ctx, boxX, boxY, boxW, boxH, 10)
   ctx.fill()
 
   // Score (center)
   ctx.fillStyle = '#fff'
-  ctx.font = mob ? 'bold 13px sans-serif' : 'bold 22px sans-serif'
+  ctx.font = mob ? 'bold 11px sans-serif' : 'bold 22px sans-serif'
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
-  ctx.fillText(`${score.home} : ${score.away}`, midX, boxY + (mob ? 12 : 20))
+  ctx.fillText(`${score.home} : ${score.away}`, midX, boxY + (mob ? 10 : 20))
 
   // Timer below score
   ctx.fillStyle = '#aaa'
-  ctx.font = mob ? '8px sans-serif' : '11px sans-serif'
-  ctx.fillText(`${half === 1 ? '전반' : '후반'} ${mins}:${secs}`, midX, boxY + (mob ? 26 : 42))
+  ctx.font = mob ? '7px sans-serif' : '11px sans-serif'
+  ctx.fillText(`${half === 1 ? '전반' : '후반'} ${mins}:${secs}`, midX, boxY + (mob ? 22 : 42))
 
   // Home: dot + username (left)
   ctx.fillStyle = homeColor
   ctx.beginPath()
-  ctx.arc(boxX + dotR + 3, boxY + (mob ? 12 : 20), dotR, 0, Math.PI * 2)
+  ctx.arc(boxX + dotR + 3, boxY + (mob ? 10 : 20), dotR, 0, Math.PI * 2)
   ctx.fill()
 
   ctx.fillStyle = '#fff'
-  ctx.font = mob ? '8px sans-serif' : 'bold 11px sans-serif'
+  ctx.font = mob ? '7px sans-serif' : 'bold 11px sans-serif'
   ctx.textAlign = 'left'
   ctx.textBaseline = 'middle'
-  ctx.fillText(homeUsername, boxX + dotR * 2 + 5, boxY + (mob ? 12 : 20), nameMaxW)
+  ctx.fillText(homeUsername, boxX + dotR * 2 + 4, boxY + (mob ? 10 : 20), nameMaxW)
 
   // Away: username + dot (right)
   ctx.textAlign = 'right'
-  ctx.fillText(awayUsername, boxX + boxW - dotR * 2 - 5, boxY + (mob ? 12 : 20), nameMaxW)
+  ctx.fillText(awayUsername, boxX + boxW - dotR * 2 - 4, boxY + (mob ? 10 : 20), nameMaxW)
 
   ctx.fillStyle = awayColor
   ctx.beginPath()
-  ctx.arc(boxX + boxW - dotR - 3, boxY + (mob ? 12 : 20), dotR, 0, Math.PI * 2)
+  ctx.arc(boxX + boxW - dotR - 3, boxY + (mob ? 10 : 20), dotR, 0, Math.PI * 2)
   ctx.fill()
 
   ctx.restore()
@@ -158,9 +157,9 @@ function drawMinimap(state: GameState) {
   const my = canvas.height - mh - (mob ? 8 : 14)
 
   ctx.save()
-  ctx.fillStyle = 'rgba(0,0,0,0.3)'
+  ctx.fillStyle = mob ? 'rgba(0,0,0,0.18)' : 'rgba(0,0,0,0.3)'
   ctx.fillRect(mx, my, mw, mh)
-  ctx.strokeStyle = 'rgba(255,255,255,0.25)'
+  ctx.strokeStyle = mob ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.25)'
   ctx.strokeRect(mx, my, mw, mh)
 
   // Midline
