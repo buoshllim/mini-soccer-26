@@ -1,5 +1,5 @@
 import type { GameState } from '../types'
-import { joinRoom } from '../main'
+import { joinRoom, goHome } from '../main'
 
 let currentRoomId: string | null = null
 
@@ -46,6 +46,6 @@ export function mountResult(el: HTMLElement, state: GameState) {
     if (currentRoomId) joinRoom(currentRoomId)
   })
   el.querySelector('#btn-lobby')!.addEventListener('click', () => {
-    if (currentRoomId) joinRoom(currentRoomId)
+    goHome()
   })
 }

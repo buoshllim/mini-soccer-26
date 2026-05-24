@@ -21,6 +21,15 @@ let activePhase: string | null = null
 export function getMyTeam() { return myTeam }
 export function getCurrentRoomId() { return currentRoomId }
 
+export function goHome() {
+  if (socket) { socket.close(); socket = null }
+  activePhase = null; myTeam = null; currentRoomId = null
+  stopGame(); destroyInput(); destroyHUD()
+  gameActive = false
+  screenEl.classList.remove('hidden')
+  mountHome(screenEl)
+}
+
 export function joinRoom(roomId: string) {
   currentRoomId = roomId
   setResultRoomId(roomId)

@@ -135,6 +135,7 @@ export default class SoccerServer implements Party.Server {
     this.state.timeLeft = 5 * 60
     this.state.countdown = undefined
     this.broadcast({ type: 'state', state: this.state })
+    if (this.tickInterval) { clearInterval(this.tickInterval); this.tickInterval = null }
     this.tickInterval = setInterval(() => this.tick(), TICK_MS)
     // Auto-start playing after 2s kickoff display
     if (this.kickoffTimeout) clearTimeout(this.kickoffTimeout)
