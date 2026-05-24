@@ -316,6 +316,27 @@ function buildPlayerMesh(color: number, isGK = false): THREE.Group {
   head.position.set(0, 0, 5.5)
   group.add(head)
 
+  // Face features on the +Y side (player's forward direction)
+  const faceMat = new THREE.MeshLambertMaterial({ color: 0x111111 })
+  // Left eye
+  const lEye = new THREE.Mesh(new THREE.SphereGeometry(0.13, 6, 6), faceMat)
+  lEye.position.set(-0.32, 0.9, 5.72)
+  group.add(lEye)
+  // Right eye
+  const rEye = new THREE.Mesh(new THREE.SphereGeometry(0.13, 6, 6), faceMat)
+  rEye.position.set(0.32, 0.9, 5.72)
+  group.add(rEye)
+  // Smile — 3 small dots in an arc
+  const smileMat = new THREE.MeshLambertMaterial({ color: 0x331100 })
+  const smilePositions: [number, number, number][] = [
+    [-0.3, 0.93, 5.3], [0, 0.97, 5.22], [0.3, 0.93, 5.3],
+  ]
+  for (const [sx, sy, sz] of smilePositions) {
+    const dot = new THREE.Mesh(new THREE.SphereGeometry(0.09, 5, 5), smileMat)
+    dot.position.set(sx, sy, sz)
+    group.add(dot)
+  }
+
   // Arm pivots at shoulder (z=4.2) — mesh hangs down so rotation swings like a pendulum
   const armW = isGK ? 0.75 : 0.5
   const armLen = isGK ? 2.0 : 1.6
