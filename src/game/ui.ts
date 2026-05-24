@@ -170,13 +170,26 @@ function drawMinimap(state: GameState) {
   ctx.stroke()
 
   // Players — Y flipped to match 3D camera (north = top of minimap)
+  const homeColor = BADGE_COLORS[(state.lobby?.home?.color ?? 'blue') as TeamColor]
+  const awayColor = BADGE_COLORS[(state.lobby?.away?.color ?? 'red') as TeamColor]
   for (const p of state.players) {
     const px = mx + (p.pos.x / FIELD.W) * mw
     const py = my + ((FIELD.H - p.pos.y) / FIELD.H) * mh
-    ctx.beginPath()
-    ctx.arc(px, py, p.isControlled ? (mob ? 3 : 4) : (mob ? 1.8 : 2.5), 0, Math.PI * 2)
-    ctx.fillStyle = p.team === 'home' ? '#3b82f6' : '#ef4444'
-    ctx.fill()
+    const color = p.team === 'home' ? homeColor : awayColor
+    if (p.isControlled) {
+      ctx.shadowBlur = mob ? 6 : 10
+      ctx.shadowColor = color
+      ctx.beginPath()
+      ctx.arc(px, py, mob ? 3.5 : 5, 0, Math.PI * 2)
+      ctx.fillStyle = '#fff'
+      ctx.fill()
+      ctx.shadowBlur = 0
+    } else {
+      ctx.beginPath()
+      ctx.arc(px, py, mob ? 1.8 : 2.5, 0, Math.PI * 2)
+      ctx.fillStyle = color
+      ctx.fill()
+    }
   }
 
   // Ball — Y flipped
