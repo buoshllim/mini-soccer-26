@@ -304,10 +304,9 @@ function buildBall(): void {
 function buildPlayerMesh(color: number, isGK = false): THREE.Group {
   const group = new THREE.Group()
   const mat = (c: number) => new THREE.MeshLambertMaterial({ color: c })
-
   const SKIN = 0xfbbf24
 
-  // Body (jersey)
+  // Body
   const body = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1.0, 2.2), mat(color))
   body.position.set(0, 0, 3.3)
   group.add(body)
@@ -317,44 +316,55 @@ function buildPlayerMesh(color: number, isGK = false): THREE.Group {
   head.position.set(0, 0, 5.5)
   group.add(head)
 
+  // Arm pivots at shoulder (z=4.2) — mesh hangs down so rotation swings like a pendulum
+  const armW = isGK ? 0.75 : 0.5
+  const armLen = isGK ? 2.0 : 1.6
+  const armX = isGK ? 1.3 : 1.2
+
+  const lArmPivot = new THREE.Group()
+  lArmPivot.position.set(-armX, 0, 4.2)
+  const lArmMesh = new THREE.Mesh(new THREE.BoxGeometry(armW, armW, armLen), mat(color))
+  lArmMesh.position.set(0, 0, -armLen / 2)
+  lArmPivot.add(lArmMesh)
   if (isGK) {
-    // GK: bigger arms + yellow gloves
-    const armGeo = new THREE.BoxGeometry(0.75, 0.75, 2.0)
-    const lArm = new THREE.Mesh(armGeo, mat(color))
-    lArm.position.set(-1.3, 0, 3.4)
-    group.add(lArm)
-    const rArm = new THREE.Mesh(armGeo, mat(color))
-    rArm.position.set(1.3, 0, 3.4)
-    group.add(rArm)
-
-    // Gloves at arm tips
-    const gloveGeo = new THREE.BoxGeometry(1.0, 1.0, 0.8)
-    const gloveMat = mat(0x22cc44)  // green gloves
-    const lGlove = new THREE.Mesh(gloveGeo, gloveMat)
-    lGlove.position.set(-1.3, 0, 4.7)
-    group.add(lGlove)
-    const rGlove = new THREE.Mesh(gloveGeo, gloveMat)
-    rGlove.position.set(1.3, 0, 4.7)
-    group.add(rGlove)
-  } else {
-    // Regular arms
-    const armGeo = new THREE.BoxGeometry(0.5, 0.5, 1.6)
-    const lArm = new THREE.Mesh(armGeo, mat(color))
-    lArm.position.set(-1.2, 0, 3.4)
-    group.add(lArm)
-    const rArm = new THREE.Mesh(armGeo, mat(color))
-    rArm.position.set(1.2, 0, 3.4)
-    group.add(rArm)
+    const lGlove = new THREE.Mesh(new THREE.BoxGeometry(1.0, 1.0, 0.8), mat(0x22cc44))
+    lGlove.position.set(0, 0, -armLen - 0.4)
+    lArmPivot.add(lGlove)
   }
+  group.add(lArmPivot)
 
-  // Legs
-  const legGeo = new THREE.BoxGeometry(0.6, 0.6, 2.0)
-  const lLeg = new THREE.Mesh(legGeo, mat(0x1e293b))
-  lLeg.position.set(-0.5, 0, 1.2)
-  group.add(lLeg)
-  const rLeg = new THREE.Mesh(legGeo, mat(0x1e293b))
-  rLeg.position.set(0.5, 0, 1.2)
-  group.add(rLeg)
+  const rArmPivot = new THREE.Group()
+  rArmPivot.position.set(armX, 0, 4.2)
+  const rArmMesh = new THREE.Mesh(new THREE.BoxGeometry(armW, armW, armLen), mat(color))
+  rArmMesh.position.set(0, 0, -armLen / 2)
+  rArmPivot.add(rArmMesh)
+  if (isGK) {
+    const rGlove = new THREE.Mesh(new THREE.BoxGeometry(1.0, 1.0, 0.8), mat(0x22cc44))
+    rGlove.position.set(0, 0, -armLen - 0.4)
+    rArmPivot.add(rGlove)
+  }
+  group.add(rArmPivot)
+
+  // Leg pivots at hip (z=2.2)
+  const lLegPivot = new THREE.Group()
+  lLegPivot.position.set(-0.5, 0, 2.2)
+  const lLegMesh = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.6, 2.0), mat(0x1e293b))
+  lLegMesh.position.set(0, 0, -1.0)
+  lLegPivot.add(lLegMesh)
+  group.add(lLegPivot)
+
+  const rLegPivot = new THREE.Group()
+  rLegPivot.position.set(0.5, 0, 2.2)
+  const rLegMesh = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.6, 2.0), mat(0x1e293b))
+  rLegMesh.position.set(0, 0, -1.0)
+  rLegPivot.add(rLegMesh)
+  group.add(rLegPivot)
+
+  // Store pivots so renderLoop can animate them
+  group.userData.lArmPivot = lArmPivot
+  group.userData.rArmPivot = rArmPivot
+  group.userData.lLegPivot = lLegPivot
+  group.userData.rLegPivot = rLegPivot
 
   group.scale.setScalar(0.65)
   return group
@@ -418,8 +428,8 @@ function syncIndicators(state: GameState): void {
     if (!player.isControlled || player.role === 'gk') continue
     controlledIds.add(player.id)
 
-    const isMyPlayer = player.team === myTeam
-    const color = isMyPlayer ? 0xFFD700 : 0xFF6699
+    // home team = gold, away team = pink — consistent from both screens
+    const color = player.team === 'home' ? 0xFFD700 : 0xFF44AA
 
     let mesh = indicatorMeshes.get(player.id)
     if (!mesh) {
@@ -469,6 +479,29 @@ function renderLoop(): void {
   const bobZ = 5.2 + Math.sin(now * 0.004) * 0.55
   for (const mesh of indicatorMeshes.values()) {
     mesh.position.set(mesh.userData.wx, mesh.userData.wy, bobZ)
+  }
+
+  // Running animation — swing arms/legs based on speed
+  if (latestState) {
+    for (const player of latestState.players) {
+      const mesh = playerMeshes.get(player.id)
+      if (!mesh) continue
+      const { lArmPivot, rArmPivot, lLegPivot, rLegPivot } = mesh.userData
+      if (!lArmPivot) continue
+      if (player.stunTimer > 0) {
+        lArmPivot.rotation.x = 0; rArmPivot.rotation.x = 0
+        lLegPivot.rotation.x = 0; rLegPivot.rotation.x = 0
+      } else {
+        const speed = Math.sqrt(player.vel.x ** 2 + player.vel.y ** 2)
+        const freq = 0.006 + (speed / 13) * 0.010
+        const amp = Math.min(speed / 8, 1) * 0.5
+        const swing = Math.sin(now * freq) * amp
+        lArmPivot.rotation.x = swing
+        rArmPivot.rotation.x = -swing
+        lLegPivot.rotation.x = -swing * 0.8
+        rLegPivot.rotation.x = swing * 0.8
+      }
+    }
   }
 
   renderer.render(scene, camera)
