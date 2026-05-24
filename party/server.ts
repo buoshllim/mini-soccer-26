@@ -11,7 +11,7 @@ const PLAYER_ACCEL = 0.28
 const GK_SPEED = 11
 const GK_RUSH_DIST = 22
 const BALL_PLAYER_RESTITUTION = 0.95  // bouncier player deflection
-const GOAL_FREEZE = 1.5           // seconds players are frozen after a goal
+const GOAL_FREEZE = 2.5           // seconds players are frozen after a goal (match ceremony duration)
 
 export default class SoccerServer implements Party.Server {
   private state: GameState
@@ -528,29 +528,34 @@ function buildPlayers(): Player[] {
     isControlled: controlled, stunTimer: 0,
   })
 
+  // Zigzag formation: players staggered on Y axis so they don't line up
   return [
-    make('home-gk', 'home', 'gk', { x: FIELD.GK_HOME_X, y: FIELD.CENTER_Y }, false),
-    make('home-df', 'home', 'df', { x: 18, y: FIELD.CENTER_Y }, false),
-    make('home-mf', 'home', 'mf', { x: 35, y: FIELD.CENTER_Y }, false),
-    make('home-fw', 'home', 'fw', { x: 48, y: FIELD.CENTER_Y }, true),
+    make('home-gk',  'home', 'gk', { x: FIELD.GK_HOME_X, y: 30 }, false),
+    make('home-df',  'home', 'df', { x: 18, y: 22 }, false),
+    make('home-mf1', 'home', 'mf', { x: 30, y: 38 }, false),
+    make('home-mf2', 'home', 'mf', { x: 40, y: 20 }, false),
+    make('home-fw',  'home', 'fw', { x: 48, y: 35 }, true),
 
-    make('away-gk', 'away', 'gk', { x: FIELD.GK_AWAY_X, y: FIELD.CENTER_Y }, false),
-    make('away-df', 'away', 'df', { x: 82, y: FIELD.CENTER_Y }, false),
-    make('away-mf', 'away', 'mf', { x: 65, y: FIELD.CENTER_Y }, false),
-    make('away-fw', 'away', 'fw', { x: 52, y: FIELD.CENTER_Y }, true),
+    make('away-gk',  'away', 'gk', { x: FIELD.GK_AWAY_X, y: 30 }, false),
+    make('away-df',  'away', 'df', { x: 82, y: 38 }, false),
+    make('away-mf1', 'away', 'mf', { x: 70, y: 22 }, false),
+    make('away-mf2', 'away', 'mf', { x: 60, y: 40 }, false),
+    make('away-fw',  'away', 'fw', { x: 52, y: 25 }, true),
   ]
 }
 
 function getInitialPos(id: string): Vec2 {
   const map: Record<string, Vec2> = {
-    'home-gk': { x: FIELD.GK_HOME_X, y: FIELD.CENTER_Y },
-    'home-df': { x: 18, y: FIELD.CENTER_Y },
-    'home-mf': { x: 35, y: FIELD.CENTER_Y },
-    'home-fw': { x: 48, y: FIELD.CENTER_Y },
-    'away-gk': { x: FIELD.GK_AWAY_X, y: FIELD.CENTER_Y },
-    'away-df': { x: 82, y: FIELD.CENTER_Y },
-    'away-mf': { x: 65, y: FIELD.CENTER_Y },
-    'away-fw': { x: 52, y: FIELD.CENTER_Y },
+    'home-gk':  { x: FIELD.GK_HOME_X, y: 30 },
+    'home-df':  { x: 18, y: 22 },
+    'home-mf1': { x: 30, y: 38 },
+    'home-mf2': { x: 40, y: 20 },
+    'home-fw':  { x: 48, y: 35 },
+    'away-gk':  { x: FIELD.GK_AWAY_X, y: 30 },
+    'away-df':  { x: 82, y: 38 },
+    'away-mf1': { x: 70, y: 22 },
+    'away-mf2': { x: 60, y: 40 },
+    'away-fw':  { x: 52, y: 25 },
   }
   return map[id] ?? { x: FIELD.CENTER_X, y: FIELD.CENTER_Y }
 }

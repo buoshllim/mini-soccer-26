@@ -38,7 +38,8 @@ export function mountLobby(el: HTMLElement, state?: GameState): void {
   const isFirstRender = !prevInput
 
   el.innerHTML = `
-    <div style="display:flex;flex-direction:column;align-items:center;gap:20px;padding:32px;max-width:380px;margin:auto">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:clamp(12px,2.5vw,20px);
+      padding:clamp(16px,4vw,32px);width:min(380px,94vw);margin:auto;box-sizing:border-box">
 
       ${phase === 'countdown' ? `
         <div style="font-size:80px;font-weight:900;color:#ffd700;text-shadow:0 0 30px #ff8800">${countdown}</div>

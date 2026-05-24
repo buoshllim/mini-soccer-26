@@ -151,7 +151,7 @@ function showGoalCeremony(score: { home: number; away: number }) {
     'display:flex', 'flex-direction:column',
     'align-items:center', 'justify-content:center',
     'background:radial-gradient(ellipse at center,rgba(255,120,0,0.35) 0%,rgba(0,0,0,0.72) 70%)',
-    'pointer-events:all',
+    'pointer-events:none',
   ].join(';')
   div.innerHTML = `
     <div style="font-size:96px;font-weight:900;color:#ffd700;letter-spacing:6px;
@@ -160,20 +160,15 @@ function showGoalCeremony(score: { home: number; away: number }) {
     <div style="font-size:52px;font-weight:bold;color:#fff;margin-top:12px;
       text-shadow:0 2px 12px rgba(0,0,0,0.9);
       animation:scoreSlide 0.4s 0.3s ease-out both">${score.home} : ${score.away}</div>
-    <button id="skip-btn" style="margin-top:28px;padding:10px 36px;border-radius:8px;
-      background:rgba(255,255,255,0.15);color:#fff;border:2px solid rgba(255,255,255,0.4);
-      font-size:15px;cursor:pointer;letter-spacing:2px">SKIP</button>
   `
   document.body.appendChild(div)
 
-  const dismiss = () => {
+  // Auto-dismiss after 2.5s — matches server GOAL_FREEZE so players unfreeze at the same time
+  ceremonyTimer = setTimeout(() => {
     div.remove()
-    if (ceremonyTimer) { clearTimeout(ceremonyTimer); ceremonyTimer = null }
-  }
-  div.querySelector('#skip-btn')!.addEventListener('click', dismiss)
-  ceremonyTimer = setTimeout(dismiss, 5000)
+    ceremonyTimer = null
+  }, 2500)
 
-  // Confetti via ui module
   spawnConfetti()
 }
 
@@ -268,10 +263,11 @@ function showHalftimeOverlay(state: GameState) {
   const homePoss = Math.round((stats.possession.home / (stats.possession.home + stats.possession.away + 1)) * 100)
 
   screenEl.innerHTML = `
-    <div style="background:rgba(0,0,0,0.92);padding:36px 48px;border-radius:16px;text-align:center;min-width:300px">
-      <h2 style="margin-bottom:12px;font-size:22px">하프타임</h2>
-      <div style="font-size:48px;font-weight:bold;margin:8px 0">${score.home} : ${score.away}</div>
-      <div style="margin-top:16px;font-size:14px;color:#aaa;line-height:2">
+    <div style="background:rgba(0,0,0,0.92);padding:clamp(20px,5vw,36px) clamp(16px,6vw,48px);
+      border-radius:16px;text-align:center;width:min(340px,90vw);box-sizing:border-box">
+      <h2 style="margin-bottom:12px;font-size:clamp(18px,4vw,22px)">하프타임</h2>
+      <div style="font-size:clamp(36px,9vw,48px);font-weight:bold;margin:8px 0">${score.home} : ${score.away}</div>
+      <div style="margin-top:16px;font-size:clamp(12px,3vw,14px);color:#aaa;line-height:2">
         <div>점유율 ${homePoss}% / ${100 - homePoss}%</div>
         <div>슈팅 ${stats.shots.home} / ${stats.shots.away}</div>
       </div>

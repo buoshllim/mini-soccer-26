@@ -2,7 +2,7 @@ import { joinRoom } from '../main'
 
 export function mountHome(el: HTMLElement) {
   el.innerHTML = `
-    <div style="text-align:center;padding:48px 32px;background:rgba(0,0,0,0.85);border-radius:16px;min-width:320px">
+    <div style="text-align:center;padding:clamp(24px,6vw,48px) clamp(16px,5vw,32px);background:rgba(0,0,0,0.85);border-radius:16px;width:min(360px,90vw);box-sizing:border-box">
       <div style="font-size:56px;margin-bottom:8px">⚽</div>
       <h1 style="font-size:32px;font-weight:bold;margin-bottom:6px">Mini Soccer</h1>
       <p style="color:#888;margin-bottom:32px;font-size:14px">실시간 4v4 축구</p>
