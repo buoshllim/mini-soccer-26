@@ -35,33 +35,34 @@ export function mountResult(el: HTMLElement, state: GameState) {
   const awayPoss = 100 - homePoss
 
   el.innerHTML = `
-    <div style="background:rgba(0,0,0,0.9);padding:clamp(20px,5vw,40px);border-radius:12px;
-      text-align:center;width:min(360px,90vw);box-sizing:border-box">
+    <div style="background:rgba(0,0,0,0.9);padding:clamp(12px,3vw,36px);border-radius:12px;
+      text-align:center;width:min(340px,90vw);box-sizing:border-box;
+      max-height:90vh;overflow-y:auto">
 
-      <h2 style="font-size:clamp(18px,4vw,24px);margin-bottom:6px">${winnerLabel}</h2>
+      <h2 style="font-size:clamp(15px,4vw,24px);margin:0 0 4px">${winnerLabel}</h2>
 
       ${winnerUsername ? `
-        <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:10px">
-          <div style="width:14px;height:14px;border-radius:50%;background:${winnerColor};flex-shrink:0"></div>
-          <span style="font-size:clamp(15px,4vw,18px);font-weight:bold;color:${winnerColor}">${winnerUsername}</span>
+        <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:6px">
+          <div style="width:10px;height:10px;border-radius:50%;background:${winnerColor};flex-shrink:0"></div>
+          <span style="font-size:clamp(13px,3.5vw,18px);font-weight:bold;color:${winnerColor}">${winnerUsername}</span>
         </div>
-      ` : '<div style="margin-bottom:10px"></div>'}
+      ` : '<div style="margin-bottom:6px"></div>'}
 
-      <div style="font-size:clamp(40px,10vw,56px);font-weight:bold;margin:8px 0">${score.home} : ${score.away}</div>
+      <div style="font-size:clamp(32px,8vw,56px);font-weight:bold;margin:4px 0">${score.home} : ${score.away}</div>
 
-      <div style="background:#1a1a2e;border-radius:8px;padding:clamp(10px,3vw,16px);
-        margin:12px 0;font-size:clamp(12px,3vw,14px)">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <div style="display:flex;align-items:center;gap:6px">
-            <div style="width:10px;height:10px;border-radius:50%;background:${homeColor}"></div>
+      <div style="background:#1a1a2e;border-radius:8px;padding:clamp(6px,2vw,14px);
+        margin:8px 0;font-size:clamp(11px,2.8vw,14px)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+          <div style="display:flex;align-items:center;gap:5px">
+            <div style="width:8px;height:8px;border-radius:50%;background:${homeColor}"></div>
             <span>${homeUsername}</span>
           </div>
-          <div style="display:flex;align-items:center;gap:6px">
+          <div style="display:flex;align-items:center;gap:5px">
             <span>${awayUsername}</span>
-            <div style="width:10px;height:10px;border-radius:50%;background:${awayColor}"></div>
+            <div style="width:8px;height:8px;border-radius:50%;background:${awayColor}"></div>
           </div>
         </div>
-        <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px">
           <span style="color:#888">점유율</span><span>${homePoss}% / ${awayPoss}%</span>
         </div>
         <div style="display:flex;justify-content:space-between">
@@ -69,9 +70,9 @@ export function mountResult(el: HTMLElement, state: GameState) {
         </div>
       </div>
 
-      <button id="btn-lobby" style="display:block;width:100%;padding:12px;
+      <button id="btn-lobby" style="display:block;width:100%;padding:clamp(8px,2vw,12px);
         border-radius:8px;background:#374151;color:#fff;border:none;
-        font-size:clamp(14px,3.5vw,16px);cursor:pointer;font-weight:bold">
+        font-size:clamp(13px,3.5vw,16px);cursor:pointer;font-weight:bold">
         처음으로
       </button>
     </div>
