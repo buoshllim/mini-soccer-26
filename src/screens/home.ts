@@ -22,8 +22,8 @@ export function mountHome(el: HTMLElement) {
         border-radius:10px;background:#16a34a;color:#fff;border:none;cursor:pointer;font-weight:bold">
         입장
       </button>
-      <p style="margin-top:20px;padding:8px 14px;border-radius:8px;background:rgba(255,200,0,0.12);
-        border:1px solid rgba(255,200,0,0.35);color:#facc15;font-size:13px;font-weight:bold">
+      <p style="width:220px;margin:20px auto 0;padding:8px 14px;border-radius:8px;background:rgba(255,200,0,0.12);
+        border:1px solid rgba(255,200,0,0.35);color:#facc15;font-size:13px;font-weight:bold;box-sizing:border-box">
         📱 모바일은 가로 모드로 플레이하세요
       </p>
     </div>`
