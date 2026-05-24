@@ -147,6 +147,32 @@ export default class SoccerServer implements Party.Server {
   private tick(): void {
     const { state } = this
 
+    // Setpiece: allow the setpiece team's controlled player to resume play
+    if (['freekick', 'penalty', 'corner', 'throwin', 'goalkick'].includes(state.phase)) {
+      const setTeam = state.setpiece?.team
+      if (setTeam) {
+        for (const player of state.players) {
+          if (!player.isControlled || player.team !== setTeam) continue
+          const connId = [...this.assignments.entries()].find(([, t]) => t === setTeam)?.[0]
+          const input = connId ? (this.inputs.get(connId) ?? null) : null
+          if (input?.action) {
+            // Attach ball to player for setpiece kick
+            player.hasBall = true
+            state.ball.ownerId = player.id
+            state.ball.pos.x = player.pos.x + player.facing.x * 1.2
+            state.ball.pos.y = player.pos.y + player.facing.y * 1.2
+            const translated = translateActionForBall(input)
+            handleBallAction(state, player, translated)
+            state.phase = 'playing'
+          } else if (input && (input.dx !== 0 || input.dy !== 0)) {
+            tickPlayerMovement(player, input)
+          }
+        }
+      }
+      this.broadcast({ type: 'state', state })
+      return
+    }
+
     if (state.phase !== 'playing' && state.phase !== 'kickoff') {
       return
     }
@@ -212,6 +238,11 @@ export default class SoccerServer implements Party.Server {
       }, 2000)
       this.broadcast({ type: 'state', state })
       return  // skip rest of tick
+    }
+
+    // Out of bounds detection (only when ball is free and game is playing)
+    if (state.phase === 'playing' && state.ball.ownerId === null) {
+      checkOutOfBounds(state)
     }
 
     // Track last touching team for out-of-bounds logic (added in Task 14)
@@ -437,6 +468,8 @@ function handleBallAction(state: GameState, player: Player, input: PlayerInput):
       break
     }
     case 'lowpass': {
+      checkOffside(state, player)
+      if (state.phase !== 'playing') break  // offside was triggered
       const spd = kickSpeed(18)
       ball.vel = { x: dir.x * spd, y: dir.y * spd, z: 0 }
       releaseBall()
@@ -445,6 +478,8 @@ function handleBallAction(state: GameState, player: Player, input: PlayerInput):
       break
     }
     case 'loftedpass': {
+      checkOffside(state, player)
+      if (state.phase !== 'playing') break
       const spd = kickSpeed(16)
       ball.vel = { x: dir.x * spd, y: dir.y * spd, z: kickSpeed(8) }
       releaseBall()
@@ -452,6 +487,8 @@ function handleBallAction(state: GameState, player: Player, input: PlayerInput):
       break
     }
     case 'throughpass': {
+      checkOffside(state, player)
+      if (state.phase !== 'playing') break
       const spd = kickSpeed(20)
       ball.vel = { x: dir.x * spd, y: dir.y * spd, z: 2 }
       releaseBall()
@@ -573,6 +610,47 @@ function checkOffside(state: GameState, passer: Player): void {
       x: passer.pos.x,
       y: state.ball.pos.y,
     })
+  }
+}
+
+function checkOutOfBounds(state: GameState): void {
+  const { ball } = state
+  const lastTeam: 'home' | 'away' = (ball as any).__lastTeam ?? 'home'
+
+  // Side out (top/bottom) → throwin for opposite team
+  if (ball.pos.y < 0 || ball.pos.y > FIELD.H) {
+    const oppositeTeam: 'home' | 'away' = lastTeam === 'home' ? 'away' : 'home'
+    ball.pos.y = clamp(ball.pos.y, 0, FIELD.H)
+    ball.vel = { x: 0, y: 0, z: 0 }
+    ball.ownerId = null
+    triggerSetpiece(state, 'throwin', oppositeTeam, { x: ball.pos.x, y: ball.pos.y })
+    return
+  }
+
+  // Goal line out (left/right, not a goal) → corner or goalkick
+  if (ball.pos.x < 0 || ball.pos.x > FIELD.W) {
+    const isLeft = ball.pos.x < 0
+    const attackingTeam: 'home' | 'away' = isLeft ? 'away' : 'home'
+    const defendingTeam: 'home' | 'away' = isLeft ? 'home' : 'away'
+
+    ball.pos.x = clamp(ball.pos.x, 0, FIELD.W)
+    ball.vel = { x: 0, y: 0, z: 0 }
+    ball.ownerId = null
+
+    if (lastTeam === attackingTeam) {
+      // Attacker kicked it out → goalkick for defending team
+      triggerSetpiece(state, 'goalkick', defendingTeam, {
+        x: isLeft ? 6 : FIELD.W - 6,
+        y: FIELD.CENTER_Y,
+      })
+    } else {
+      // Defender kicked it out → corner for attacking team
+      const cornerY = ball.pos.y < FIELD.CENTER_Y ? 0 : FIELD.H
+      triggerSetpiece(state, 'corner', attackingTeam, {
+        x: isLeft ? 0 : FIELD.W,
+        y: cornerY,
+      })
+    }
   }
 }
 
