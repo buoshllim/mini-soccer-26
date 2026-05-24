@@ -440,30 +440,29 @@ function syncBall(state: GameState): void {
   ballMesh.position.set(wx, wy, 0.7)  // fixed height, no z-axis
 }
 
-// Floating cone above controlled field players — gold for mine, pink for opponent
+// Floating cone above controlled field players — uses team uniform color with glow
 function syncIndicators(state: GameState): void {
   if (!scene) return
-  const myTeam = rendererMyTeam
   const controlledIds = new Set<string>()
 
   for (const player of state.players) {
     if (!player.isControlled || player.role === 'gk') continue
     controlledIds.add(player.id)
 
-    // home team = gold, away team = pink
-    const color = player.team === 'home' ? 0xFFD700 : 0xFF44AA
+    const color = getTeamColor(state, player.team)
 
     let mesh = indicatorMeshes.get(player.id)
     if (!mesh) {
       const geo = new THREE.ConeGeometry(0.5, 1.2, 6)
       geo.rotateX(Math.PI)  // tip points downward
-      mesh = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color, emissive: color, emissiveIntensity: 0.4 }))
+      mesh = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color, emissive: color, emissiveIntensity: 1.0 }))
       scene.add(mesh)
       indicatorMeshes.set(player.id, mesh)
     } else {
       const mat = mesh.material as THREE.MeshLambertMaterial
       mat.color.setHex(color)
       mat.emissive.setHex(color)
+      mat.emissiveIntensity = 1.0
     }
 
     const [wx, wy] = gameToWorld(player.pos.x, player.pos.y)
