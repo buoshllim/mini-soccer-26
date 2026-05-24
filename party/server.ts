@@ -1,5 +1,5 @@
 import type * as Party from 'partykit/server'
-import type { GameState, PlayerInput, ClientMsg, ServerMsg, LobbyState } from '../src/types'
+import type { GameState, PlayerInput, ClientMsg, ServerMsg, LobbyState, Player, Vec2, PlayerRole } from '../src/types'
 import { FIELD } from '../src/types'
 
 const TICK_MS = 50  // 20 ticks/sec
@@ -200,12 +200,100 @@ function randomJersey(): number {
   return Math.floor(Math.random() * 99) + 1
 }
 
-// Stub — implemented in Task 5
+function gridSlotToRole(slotIdx: number): PlayerRole {
+  const row = Math.floor(slotIdx / 3)
+  if (row === 0) return 'fwd'
+  if (row === 1) return 'mid'
+  return 'def'
+}
+
+function gridSlotToStartPos(slotIdx: number, team: 'home' | 'away'): Vec2 {
+  const col = slotIdx % 3
+  const row = Math.floor(slotIdx / 3)
+
+  const yPositions = [15, 30, 45] as const  // left, center, right
+  const xPositionsHome = [72, 58, 35] as const  // FWD, MID, DEF
+  const xPositionsAway = [28, 42, 65] as const
+
+  const y = yPositions[col]
+  const x = team === 'home' ? xPositionsHome[row] : xPositionsAway[row]
+  return { x, y }
+}
+
+function randomUniqueJersey(used: Set<number>): number {
+  let n: number
+  do {
+    n = Math.floor(Math.random() * 98) + 2  // 2-99 range for AI (human can pick 1-99)
+  } while (used.has(n))
+  return n
+}
+
 function buildPlayers(
   home: NonNullable<LobbyState['home']>,
   away: NonNullable<LobbyState['away']>
-): import('../src/types').Player[] {
-  void home
-  void away
-  return []
+): Player[] {
+  const players: Player[] = []
+  const usedJerseys = { home: new Set<number>(), away: new Set<number>() }
+
+  // Add GK for each team
+  const addGK = (team: 'home' | 'away', jersey: number) => {
+    const pos: Vec2 = team === 'home'
+      ? { x: 4, y: FIELD.CENTER_Y }
+      : { x: FIELD.W - 4, y: FIELD.CENTER_Y }
+
+    players.push({
+      id: `${team}-gk`,
+      team,
+      role: 'gk',
+      pos,
+      facing: { x: team === 'home' ? 1 : -1, y: 0 },
+      stamina: 1,
+      isControlled: false,
+      hasBall: false,
+      jerseyNumber: jersey,
+      animState: 'idle',
+    })
+    usedJerseys[team].add(jersey)
+  }
+
+  // Add outfielder for each formation slot
+  const addOutfielder = (
+    team: 'home' | 'away',
+    slotIdx: number,
+    playerIdx: number,
+    isHuman: boolean,
+    humanJersey: number
+  ) => {
+    const role = gridSlotToRole(slotIdx)
+    const pos = gridSlotToStartPos(slotIdx, team)
+    const jersey = isHuman
+      ? humanJersey
+      : randomUniqueJersey(usedJerseys[team])
+    usedJerseys[team].add(jersey)
+
+    players.push({
+      id: `${team}-${playerIdx}`,
+      team,
+      role,
+      pos,
+      facing: { x: team === 'home' ? 1 : -1, y: 0 },
+      stamina: 1,
+      isControlled: isHuman,
+      hasBall: false,
+      jerseyNumber: jersey,
+      animState: 'idle',
+    })
+  }
+
+  addGK('home', 1)
+  addGK('away', 1)
+
+  home.formation!.slots.forEach((slotIdx, i) => {
+    addOutfielder('home', slotIdx, i, i === 0, home.jerseyNumber)
+  })
+  away.formation!.slots.forEach((slotIdx, i) => {
+    addOutfielder('away', slotIdx, i, i === 0, away.jerseyNumber)
+  })
+
+  return players
 }
