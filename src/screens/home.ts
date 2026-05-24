@@ -14,13 +14,13 @@ export function mountHome(el: HTMLElement) {
         border-radius:10px;background:#374151;color:#fff;border:none;cursor:pointer">
         방 참가
       </button>
-      <input id="room-code" placeholder="6자리 코드 입력" maxlength="6"
+      <input id="room-code" placeholder="6자리 숫자 입력" maxlength="6" inputmode="numeric" pattern="[0-9]*"
         style="display:none;margin-top:8px;padding:12px;width:220px;text-align:center;font-size:20px;
         border-radius:8px;border:1px solid #555;background:#1a1a2e;color:#fff;letter-spacing:4px" />
     </div>`
 
   el.querySelector('#btn-create')!.addEventListener('click', () => {
-    const code = Math.random().toString(36).slice(2, 8).toUpperCase()
+    const code = String(Math.floor(Math.random() * 900000) + 100000)
     joinRoom(code)
   })
 
@@ -34,11 +34,12 @@ export function mountHome(el: HTMLElement) {
 
   codeInput.addEventListener('keydown', (e: KeyboardEvent) => {
     if (e.key === 'Enter' && codeInput.value.length === 6) {
-      joinRoom(codeInput.value.toUpperCase())
+      joinRoom(codeInput.value)
     }
   })
 
   codeInput.addEventListener('input', () => {
-    codeInput.value = codeInput.value.toUpperCase()
+    // numbers only
+    codeInput.value = codeInput.value.replace(/\D/g, '').slice(0, 6)
   })
 }

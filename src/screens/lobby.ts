@@ -1,10 +1,12 @@
 import type { GameState, TeamColor } from '../types'
-import { sendLobby } from '../main'
+import { sendLobby, getCurrentRoomId } from '../main'
 
 let _color: TeamColor | null = null
+let _username = ''
 
 export function resetLobbyLocalState(): void {
   _color = null
+  _username = ''
 }
 
 export function mountLobby(el: HTMLElement, state?: GameState): void {
@@ -23,24 +25,51 @@ export function mountLobby(el: HTMLElement, state?: GameState): void {
 
   const phase = state?.phase ?? 'lobby'
   const countdown = state?.countdown
+  const roomCode = getCurrentRoomId() ?? '------'
+
+  // Waiting for opponent — show room code prominently
+  const waitingForOpponent = !lobby && phase === 'lobby'
 
   el.innerHTML = `
-    <div style="display:flex;flex-direction:column;align-items:center;gap:24px;padding:32px;max-width:380px;margin:auto">
-      <h1 style="font-size:28px;font-weight:900;letter-spacing:3px;color:#fff;margin:0">⚽ CHAOS SOCCER</h1>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:20px;padding:32px;max-width:380px;margin:auto">
 
       ${phase === 'countdown' ? `
         <div style="font-size:80px;font-weight:900;color:#ffd700;text-shadow:0 0 30px #ff8800">${countdown}</div>
       ` : ''}
 
-      ${phase === 'lobby' && myTeam ? `
-        <div style="background:rgba(255,255,255,0.08);border-radius:12px;padding:20px;width:100%;box-sizing:border-box">
-          <p style="margin:0 0 12px;font-size:13px;color:#aaa;text-align:center">팀 색상 선택</p>
+      ${waitingForOpponent ? `
+        <div style="text-align:center">
+          <p style="margin:0 0 8px;font-size:13px;color:#888">친구에게 이 코드를 알려주세요</p>
+          <div style="font-size:52px;font-weight:900;letter-spacing:10px;color:#fff;
+            background:rgba(255,255,255,0.08);padding:16px 24px;border-radius:12px;
+            font-family:monospace">${roomCode}</div>
+          <button id="copy-btn" style="margin-top:10px;padding:8px 20px;border-radius:6px;
+            background:rgba(255,255,255,0.1);color:#aaa;border:1px solid rgba(255,255,255,0.2);
+            cursor:pointer;font-size:13px">복사</button>
+        </div>
+        <p style="color:#555;font-size:13px;margin:0">상대방 접속 대기 중...</p>
+      ` : ''}
+
+      ${phase === 'lobby' && myTeam && lobby ? `
+        <div style="background:rgba(255,255,255,0.06);border-radius:12px;padding:18px;width:100%;box-sizing:border-box">
+          <p style="margin:0 0 8px;font-size:12px;color:#888">닉네임</p>
+          <input id="username-input" type="text" maxlength="12"
+            placeholder="이름을 입력하세요"
+            value="${_username}"
+            style="width:100%;box-sizing:border-box;padding:10px 12px;border-radius:8px;
+              border:1px solid rgba(255,255,255,0.15);background:rgba(0,0,0,0.3);
+              color:#fff;font-size:15px;outline:none;" />
+        </div>
+
+        <div style="background:rgba(255,255,255,0.06);border-radius:12px;padding:18px;width:100%;box-sizing:border-box">
+          <p style="margin:0 0 10px;font-size:12px;color:#888">팀 색상</p>
           <div style="display:flex;gap:10px;justify-content:center">
             ${colors.map(c => `
               <button data-color="${c}" style="
-                width:48px;height:48px;border-radius:50%;background:${colorHex[c]};
-                border:${_color === c ? '3px solid #fff' : '3px solid transparent'};
-                cursor:pointer;transition:border 0.1s;
+                width:52px;height:52px;border-radius:50%;background:${colorHex[c]};
+                border:${_color === c ? '4px solid #fff' : '4px solid transparent'};
+                cursor:pointer;box-shadow:${_color === c ? `0 0 0 2px ${colorHex[c]}` : 'none'};
+                transition:border 0.1s;
               "></button>
             `).join('')}
           </div>
@@ -58,14 +87,24 @@ export function mountLobby(el: HTMLElement, state?: GameState): void {
       ` : ''}
 
       ${!myTeam && phase === 'lobby' ? `
-        <p style="color:#888;font-size:14px">대기 중... (방이 가득 찼습니다)</p>
-      ` : ''}
-
-      ${!lobby && phase === 'lobby' ? `
-        <p style="color:#666;font-size:14px">상대 플레이어 기다리는 중...</p>
+        <p style="color:#888;font-size:14px">방이 가득 찼습니다</p>
       ` : ''}
     </div>
   `
+
+  el.querySelector('#copy-btn')?.addEventListener('click', () => {
+    navigator.clipboard.writeText(roomCode).then(() => {
+      const btn = el.querySelector<HTMLButtonElement>('#copy-btn')!
+      btn.textContent = '복사됨 ✓'
+      setTimeout(() => { btn.textContent = '복사' }, 2000)
+    })
+  })
+
+  const usernameInput = el.querySelector<HTMLInputElement>('#username-input')
+  usernameInput?.addEventListener('input', () => {
+    _username = usernameInput.value
+    ;(window as any).__username = _username
+  })
 
   el.querySelectorAll('[data-color]').forEach(btn => {
     btn.addEventListener('click', () => {
