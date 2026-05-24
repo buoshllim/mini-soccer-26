@@ -4,8 +4,8 @@ export function mountHome(el: HTMLElement) {
   el.innerHTML = `
     <div style="text-align:center;padding:48px 32px;background:rgba(0,0,0,0.85);border-radius:16px;min-width:320px">
       <div style="font-size:56px;margin-bottom:8px">⚽</div>
-      <h1 style="font-size:32px;font-weight:bold;margin-bottom:6px">Mini Soccer</h1>
-      <p style="color:#888;margin-bottom:32px;font-size:14px">실시간 5v5 축구</p>
+      <h1 style="font-size:32px;font-weight:bold;margin-bottom:6px">Chaos Soccer</h1>
+      <p style="color:#888;margin-bottom:32px;font-size:14px">4v4 아케이드 축구</p>
       <button id="btn-create" style="display:block;width:220px;margin:0 auto 12px;padding:14px;font-size:16px;
         border-radius:10px;background:#6366f1;color:#fff;border:none;cursor:pointer;font-weight:bold">
         방 만들기
@@ -15,8 +15,13 @@ export function mountHome(el: HTMLElement) {
         방 참가
       </button>
       <input id="room-code" placeholder="6자리 숫자 입력" maxlength="6" inputmode="numeric" pattern="[0-9]*"
-        style="display:none;margin-top:8px;padding:12px;width:220px;text-align:center;font-size:20px;
-        border-radius:8px;border:1px solid #555;background:#1a1a2e;color:#fff;letter-spacing:4px" />
+        style="display:none;width:220px;margin:0 auto 8px;padding:13px;text-align:center;font-size:22px;
+        border-radius:10px;border:2px solid #555;background:#1a1a2e;color:#fff;letter-spacing:6px;
+        box-sizing:border-box;" />
+      <button id="btn-enter" style="display:none;width:220px;margin:0 auto;padding:14px;font-size:16px;
+        border-radius:10px;background:#16a34a;color:#fff;border:none;cursor:pointer;font-weight:bold">
+        입장
+      </button>
     </div>`
 
   el.querySelector('#btn-create')!.addEventListener('click', () => {
@@ -24,22 +29,29 @@ export function mountHome(el: HTMLElement) {
     joinRoom(code)
   })
 
-  const joinBtn = el.querySelector('#btn-join')!
+  const joinBtn = el.querySelector<HTMLButtonElement>('#btn-join')!
   const codeInput = el.querySelector<HTMLInputElement>('#room-code')!
+  const enterBtn = el.querySelector<HTMLButtonElement>('#btn-enter')!
 
   joinBtn.addEventListener('click', () => {
+    joinBtn.style.display = 'none'
     codeInput.style.display = 'block'
+    enterBtn.style.display = 'block'
     codeInput.focus()
   })
 
+  const tryJoin = () => {
+    if (codeInput.value.length === 6) joinRoom(codeInput.value)
+  }
+
   codeInput.addEventListener('keydown', (e: KeyboardEvent) => {
-    if (e.key === 'Enter' && codeInput.value.length === 6) {
-      joinRoom(codeInput.value)
-    }
+    if (e.key === 'Enter') tryJoin()
   })
 
   codeInput.addEventListener('input', () => {
-    // numbers only
     codeInput.value = codeInput.value.replace(/\D/g, '').slice(0, 6)
+    enterBtn.style.opacity = codeInput.value.length === 6 ? '1' : '0.4'
   })
+
+  enterBtn.addEventListener('click', tryJoin)
 }
