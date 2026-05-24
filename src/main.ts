@@ -110,8 +110,7 @@ function onStateUpdate(state: GameState) {
 
 function showHalftimeOverlay(state: GameState) {
   const { score, stats } = state
-  const totalTicks = stats.possession.home + stats.possession.away
-  const homePoss = totalTicks > 0 ? Math.round((stats.possession.home / totalTicks) * 100) : 50
+  const homePoss = Math.round((stats.possession.home / (stats.possession.home + stats.possession.away + 1)) * 100)
 
   screenEl.innerHTML = `
     <div style="background:rgba(0,0,0,0.92);padding:36px 48px;border-radius:16px;text-align:center;min-width:300px">
