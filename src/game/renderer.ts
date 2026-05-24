@@ -348,7 +348,7 @@ function buildPlayerMesh(color: number, isGK = false): THREE.Group {
   lArmMesh.position.set(0, 0, -armLen / 2)
   lArmPivot.add(lArmMesh)
   if (isGK) {
-    const lGlove = new THREE.Mesh(new THREE.BoxGeometry(1.0, 1.0, 0.8), mat(0x22cc44))
+    const lGlove = new THREE.Mesh(new THREE.BoxGeometry(1.0, 1.0, 0.8), new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0xaaaaaa, emissiveIntensity: 0.6 }))
     lGlove.position.set(0, 0, -armLen - 0.4)
     lArmPivot.add(lGlove)
   }
@@ -360,7 +360,7 @@ function buildPlayerMesh(color: number, isGK = false): THREE.Group {
   rArmMesh.position.set(0, 0, -armLen / 2)
   rArmPivot.add(rArmMesh)
   if (isGK) {
-    const rGlove = new THREE.Mesh(new THREE.BoxGeometry(1.0, 1.0, 0.8), mat(0x22cc44))
+    const rGlove = new THREE.Mesh(new THREE.BoxGeometry(1.0, 1.0, 0.8), new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0xaaaaaa, emissiveIntensity: 0.6 }))
     rGlove.position.set(0, 0, -armLen - 0.4)
     rArmPivot.add(rGlove)
   }
