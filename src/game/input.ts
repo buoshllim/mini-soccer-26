@@ -79,13 +79,13 @@ function setupMobileControls(): void {
   document.body.appendChild(mobileContainer)
 
   const joyZone = document.createElement('div')
-  joyZone.style.cssText = 'position:absolute;left:0;bottom:0;width:160px;height:160px;pointer-events:all;'
+  joyZone.style.cssText = 'position:absolute;left:0;bottom:0;width:240px;height:240px;pointer-events:all;'
   mobileContainer.appendChild(joyZone)
 
   joystickManager = nipplejs.create({
     zone: joyZone, mode: 'static',
-    position: { left: '80px', bottom: '80px' },
-    color: 'rgba(255,255,255,0.3)', size: 100,
+    position: { left: '120px', bottom: '120px' },
+    color: 'rgba(255,255,255,0.3)', size: 150,
   })
   joystickManager.on('move', (evt) => {
     const v = (evt as any).data?.vector
@@ -97,9 +97,9 @@ function setupMobileControls(): void {
   kickBtn.textContent = '⚽'
   kickBtn.style.cssText = [
     'position:absolute;right:24px;bottom:24px;',
-    'width:88px;height:88px;border-radius:50%;',
+    'width:132px;height:132px;border-radius:50%;',
     'border:3px solid rgba(255,255,255,0.5);',
-    'background:rgba(255,140,0,0.7);color:#fff;font-size:36px;',
+    'background:rgba(255,140,0,0.7);color:#fff;font-size:54px;',
     'pointer-events:all;touch-action:none;',
   ].join('')
   kickBtn.addEventListener('touchstart', () => { kickStart = Date.now() }, { passive: true })
