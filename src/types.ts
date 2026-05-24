@@ -23,7 +23,7 @@ export type Ball = {
 }
 
 export type Formation = {
-  slots: number[]  // 4 indices from 0~8 (3×3 grid)
+  slots: [number, number, number, number]  // exactly 4 grid indices, each 0~8
 }
 
 export type LobbyState = {
@@ -69,7 +69,7 @@ export type PlayerInput = {
   switchPlayer: boolean
   action: 'shoot' | 'chipshot' | 'lowpass' | 'loftedpass' | 'throughpass'
         | 'tackle' | 'slidetackle' | 'gkrush' | null
-  power: number         // 0~1
+  power: number         // 0~1; server must clamp to [0, 1] before use
 }
 
 export type ServerMsg =
