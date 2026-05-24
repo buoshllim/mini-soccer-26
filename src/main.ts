@@ -250,6 +250,7 @@ function onStateUpdate(state: GameState) {
     screenEl.classList.add('hidden')
     if (!gameActive) {
       playWhistle()
+      if (myTeam) setRendererTeam(myTeam)  // restore after stopGame() cleared it
       startGame(state)
       if (myTeam) initHUD(myTeam)
       initInput()

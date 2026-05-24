@@ -100,12 +100,12 @@ function drawScoreTimer(state: GameState) {
   const homeColor = BADGE_COLORS[homeColorName]
   const awayColor = BADGE_COLORS[awayColorName]
 
-  const boxW = mob ? 190 : 300
-  const boxH = mob ? 44 : 58
+  const boxW = mob ? 140 : 300
+  const boxH = mob ? 36 : 58
   const boxX = 10, boxY = 10
   const midX = boxX + boxW / 2
-  const dotR = mob ? 6 : 8
-  const nameLen = mob ? 6 : 8
+  const dotR = mob ? 4 : 8
+  const nameLen = mob ? 4 : 8
 
   ctx.save()
 
@@ -115,35 +115,35 @@ function drawScoreTimer(state: GameState) {
 
   // Score (center)
   ctx.fillStyle = '#fff'
-  ctx.font = mob ? 'bold 18px sans-serif' : 'bold 22px sans-serif'
+  ctx.font = mob ? 'bold 13px sans-serif' : 'bold 22px sans-serif'
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
-  ctx.fillText(`${score.home} : ${score.away}`, midX, boxY + (mob ? 15 : 20))
+  ctx.fillText(`${score.home} : ${score.away}`, midX, boxY + (mob ? 12 : 20))
 
   // Timer below score
   ctx.fillStyle = '#aaa'
-  ctx.font = mob ? '9px sans-serif' : '11px sans-serif'
-  ctx.fillText(`${half === 1 ? '전반' : '후반'} ${mins}:${secs}`, midX, boxY + (mob ? 33 : 42))
+  ctx.font = mob ? '8px sans-serif' : '11px sans-serif'
+  ctx.fillText(`${half === 1 ? '전반' : '후반'} ${mins}:${secs}`, midX, boxY + (mob ? 26 : 42))
 
   // Home: dot + username (left)
   ctx.fillStyle = homeColor
   ctx.beginPath()
-  ctx.arc(boxX + dotR + 4, boxY + (mob ? 15 : 20), dotR, 0, Math.PI * 2)
+  ctx.arc(boxX + dotR + 3, boxY + (mob ? 12 : 20), dotR, 0, Math.PI * 2)
   ctx.fill()
 
   ctx.fillStyle = '#fff'
-  ctx.font = mob ? '9px sans-serif' : 'bold 11px sans-serif'
+  ctx.font = mob ? '8px sans-serif' : 'bold 11px sans-serif'
   ctx.textAlign = 'left'
   ctx.textBaseline = 'middle'
-  ctx.fillText(homeUsername.slice(0, nameLen), boxX + dotR * 2 + 7, boxY + (mob ? 15 : 20))
+  ctx.fillText(homeUsername.slice(0, nameLen), boxX + dotR * 2 + 5, boxY + (mob ? 12 : 20))
 
   // Away: username + dot (right)
   ctx.textAlign = 'right'
-  ctx.fillText(awayUsername.slice(0, nameLen), boxX + boxW - dotR * 2 - 7, boxY + (mob ? 15 : 20))
+  ctx.fillText(awayUsername.slice(0, nameLen), boxX + boxW - dotR * 2 - 5, boxY + (mob ? 12 : 20))
 
   ctx.fillStyle = awayColor
   ctx.beginPath()
-  ctx.arc(boxX + boxW - dotR - 4, boxY + (mob ? 15 : 20), dotR, 0, Math.PI * 2)
+  ctx.arc(boxX + boxW - dotR - 3, boxY + (mob ? 12 : 20), dotR, 0, Math.PI * 2)
   ctx.fill()
 
   ctx.restore()
@@ -220,12 +220,13 @@ function drawConfetti() {
 
 function drawKeyHints() {
   if (!ctx || !canvas) return
+  if (canvas.width < 600) return  // mobile: no keyboard, skip hint
   ctx.save()
   ctx.fillStyle = 'rgba(0,0,0,0.55)'
-  ctx.fillRect(10, canvas.height - 34, 190, 26)
+  ctx.fillRect(10, canvas.height - 34, 220, 26)
   ctx.font = 'bold 11px monospace'
   ctx.fillStyle = '#ffd700'
   ctx.textAlign = 'left'
-  ctx.fillText('[Space] 킥  꾹 누르면 강슛', 18, canvas.height - 17)
+  ctx.fillText('SPACE/슛 버튼 오래 눌렀다 떼면 강슛', 18, canvas.height - 17)
   ctx.restore()
 }

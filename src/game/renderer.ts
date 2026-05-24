@@ -428,8 +428,8 @@ function syncIndicators(state: GameState): void {
     if (!player.isControlled || player.role === 'gk') continue
     controlledIds.add(player.id)
 
-    // home team = pink, away team = gold
-    const color = player.team === 'home' ? 0xFF44AA : 0xFFD700
+    // home team = gold, away team = pink
+    const color = player.team === 'home' ? 0xFFD700 : 0xFF44AA
 
     let mesh = indicatorMeshes.get(player.id)
     if (!mesh) {

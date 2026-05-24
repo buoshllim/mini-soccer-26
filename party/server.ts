@@ -151,7 +151,8 @@ export default class SoccerServer implements Party.Server {
       const input = connId ? (this.inputs.get(connId) ?? null) : null
       const controlled = state.players.find(p => p.team === team && p.isControlled && p.role !== 'gk')
       if (controlled && input && controlled.stunTimer <= 0) {
-        movePlayer(controlled, input.dx, input.dy)
+        const hasBall = controlled.id === state.ball.ownerId
+        movePlayer(controlled, input.dx, input.dy, hasBall)
         if (controlled.id === state.ball.ownerId && input.kickPower > 0) {
           releaseBallKick(state.ball, controlled, input.kickPower)
         }
@@ -281,7 +282,7 @@ export default class SoccerServer implements Party.Server {
 
 // ─── Player helpers ───────────────────────────────────────────────────────────
 
-function movePlayer(p: Player, dx: number, dy: number): void {
+function movePlayer(p: Player, dx: number, dy: number, hasBall = false): void {
   const len = Math.sqrt(dx * dx + dy * dy)
   if (len < 0.01) {
     p.vel.x *= 0.7; p.vel.y *= 0.7
@@ -290,7 +291,8 @@ function movePlayer(p: Player, dx: number, dy: number): void {
     return
   }
   const nx = dx / len, ny = dy / len
-  const targetVx = nx * PLAYER_SPEED, targetVy = ny * PLAYER_SPEED
+  const speed = hasBall ? PLAYER_SPEED * 1.12 : PLAYER_SPEED
+  const targetVx = nx * speed, targetVy = ny * speed
   p.vel.x += (targetVx - p.vel.x) * PLAYER_ACCEL
   p.vel.y += (targetVy - p.vel.y) * PLAYER_ACCEL
   p.pos.x += p.vel.x * DT
