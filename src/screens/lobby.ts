@@ -1,9 +1,28 @@
 import type { GameState, TeamColor, Formation } from '../types'
-import { sendLobby } from '../main'
+import { sendLobby, getCurrentRoomId } from '../main'
 
 export function mountLobby(el: HTMLElement, state: GameState) {
   const lobby = state.lobby
-  if (!lobby) return
+  if (!lobby) {
+    const code = getCurrentRoomId() ?? '------'
+    el.innerHTML = `
+      <div style="background:rgba(0,0,0,0.85);padding:40px;border-radius:12px;text-align:center;min-width:320px">
+        <div style="font-size:40px;margin-bottom:12px">⚽</div>
+        <h2 style="margin-bottom:16px">방 생성됨</h2>
+        <p style="color:#888;margin-bottom:20px;font-size:14px">친구에게 코드를 알려주세요</p>
+        <div style="font-size:36px;font-weight:bold;letter-spacing:8px;background:#1a1a2e;padding:16px;border-radius:8px;margin-bottom:16px">${code}</div>
+        <button id="copy-btn" style="padding:10px 24px;border-radius:8px;background:#374151;color:#fff;border:none;cursor:pointer;font-size:14px">코드 복사</button>
+        <p style="margin-top:20px;color:#555;font-size:13px">상대방 접속 대기중...</p>
+      </div>`
+    el.querySelector('#copy-btn')!.addEventListener('click', () => {
+      navigator.clipboard.writeText(code).then(() => {
+        const btn = el.querySelector<HTMLButtonElement>('#copy-btn')!
+        btn.textContent = '복사됨 ✓'
+        setTimeout(() => { btn.textContent = '코드 복사' }, 2000)
+      })
+    })
+    return
+  }
 
   el.innerHTML = `
     <div style="background:rgba(0,0,0,0.85);padding:32px;border-radius:12px;min-width:360px;max-width:480px">
