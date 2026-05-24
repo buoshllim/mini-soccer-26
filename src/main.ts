@@ -167,7 +167,7 @@ function showGoalCeremony(score: { home: number; away: number }) {
   ceremonyTimer = setTimeout(() => {
     div.remove()
     ceremonyTimer = null
-  }, 2500)
+  }, 1500)
 
   spawnConfetti()
 }

@@ -11,7 +11,7 @@ const PLAYER_ACCEL = 0.28
 const GK_SPEED = 11
 const GK_RUSH_DIST = 22
 const BALL_PLAYER_RESTITUTION = 0.95  // bouncier player deflection
-const GOAL_FREEZE = 2.5           // seconds players are frozen after a goal (match ceremony duration)
+const GOAL_FREEZE = 1.5           // seconds players are frozen after a goal (match ceremony duration)
 
 export default class SoccerServer implements Party.Server {
   private state: GameState
@@ -130,7 +130,7 @@ export default class SoccerServer implements Party.Server {
 
   private startGame() {
     this.state.players = buildPlayers()
-    this.state.timeLeft = 3 * 60
+    this.state.timeLeft = 150
     this.state.countdown = undefined
     this.state.phase = 'playing'
     this.state.ball = { pos: { x: FIELD.CENTER_X, y: FIELD.CENTER_Y }, vel: { x: 0, y: 0 }, ownerId: null }
@@ -264,7 +264,7 @@ export default class SoccerServer implements Party.Server {
       this.state.half = 2
       this.broadcast({ type: 'state', state: this.state })
       setTimeout(() => {
-        this.state.timeLeft = 3 * 60
+        this.state.timeLeft = 150
         this.startCountdown()
       }, 5000)
     } else {
