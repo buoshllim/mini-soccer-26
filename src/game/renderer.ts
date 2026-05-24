@@ -34,8 +34,8 @@ export function startGame(initialState: GameState): void {
   scene = new THREE.Scene()
   scene.background = new THREE.Color(0x1a2035)
 
-  camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 500)
-  camera.position.set(0, -55, 75)
+  camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 500)
+  camera.position.set(0, -38, 45)
   camera.lookAt(0, 0, 0)
 
   buildLighting()
@@ -44,6 +44,7 @@ export function startGame(initialState: GameState): void {
   syncPlayers(initialState)
 
   window.addEventListener('resize', onResize)
+  window.addEventListener('wheel', onWheel, { passive: false })
   animFrameId = requestAnimationFrame(renderLoop)
 }
 
@@ -63,6 +64,7 @@ export function stopGame(): void {
   camera = null
   latestState = null
   window.removeEventListener('resize', onResize)
+  window.removeEventListener('wheel', onWheel)
 }
 
 export function updateGameState(state: GameState): void {
@@ -152,11 +154,15 @@ function buildField(): void {
 
 function buildGoal(x: number): void {
   if (!scene) return
-  const mat = new THREE.MeshLambertMaterial({ color: 0xdddddd })
+  const mat = new THREE.MeshLambertMaterial({ color: 0xeeeeee })
   const goalHW = FIELD.GOAL_WIDTH / 2  // 4 world units
+  const depth = 2.5  // goal depth in world units
+  const dir = x < 0 ? 1 : -1  // direction into the field
 
-  // Posts
-  const postGeo = new THREE.CylinderGeometry(0.2, 0.2, 5, 8)
+  // Front posts (standing upright along Z)
+  const postGeo = new THREE.CylinderGeometry(0.18, 0.18, 5, 8)
+  postGeo.rotateX(Math.PI / 2)  // Y-axis → Z-axis (standing up)
+
   const lPost = new THREE.Mesh(postGeo, mat)
   lPost.position.set(x, -goalHW, 2.5)
   scene.add(lPost)
@@ -165,12 +171,38 @@ function buildGoal(x: number): void {
   rPost.position.set(x, goalHW, 2.5)
   scene.add(rPost)
 
-  // Crossbar
-  const crossGeo = new THREE.CylinderGeometry(0.15, 0.15, FIELD.GOAL_WIDTH, 8)
-  crossGeo.rotateX(Math.PI / 2)
+  // Front crossbar (horizontal along Y, connecting both posts at top)
+  const crossGeo = new THREE.CylinderGeometry(0.13, 0.13, FIELD.GOAL_WIDTH, 8)
+  // Default cylinder is along Y — no rotation needed
   const crossbar = new THREE.Mesh(crossGeo, mat)
   crossbar.position.set(x, 0, 5)
   scene.add(crossbar)
+
+  // Back posts
+  const lBackPost = new THREE.Mesh(postGeo.clone(), mat)
+  lBackPost.position.set(x + dir * depth, -goalHW, 2.5)
+  scene.add(lBackPost)
+
+  const rBackPost = new THREE.Mesh(postGeo.clone(), mat)
+  rBackPost.position.set(x + dir * depth, goalHW, 2.5)
+  scene.add(rBackPost)
+
+  // Back crossbar
+  const backCross = new THREE.Mesh(crossGeo.clone(), mat)
+  backCross.position.set(x + dir * depth, 0, 5)
+  scene.add(backCross)
+
+  // Side top bars (along X connecting front to back at top)
+  const sideBarGeo = new THREE.CylinderGeometry(0.1, 0.1, depth, 6)
+  sideBarGeo.rotateZ(Math.PI / 2)  // Y → X axis
+
+  const lTopBar = new THREE.Mesh(sideBarGeo, mat)
+  lTopBar.position.set(x + dir * depth / 2, -goalHW, 5)
+  scene.add(lTopBar)
+
+  const rTopBar = new THREE.Mesh(sideBarGeo.clone(), mat)
+  rTopBar.position.set(x + dir * depth / 2, goalHW, 5)
+  scene.add(rTopBar)
 }
 
 function buildBall(): void {
@@ -287,4 +319,11 @@ function onResize(): void {
   camera.aspect = window.innerWidth / window.innerHeight
   camera.updateProjectionMatrix()
   renderer.setSize(window.innerWidth, window.innerHeight)
+}
+
+function onWheel(e: WheelEvent): void {
+  e.preventDefault()
+  if (!camera) return
+  camera.fov = Math.max(25, Math.min(80, camera.fov + (e.deltaY > 0 ? 4 : -4)))
+  camera.updateProjectionMatrix()
 }

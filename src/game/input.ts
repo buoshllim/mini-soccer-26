@@ -88,8 +88,8 @@ function getDxDy(): { dx: number; dy: number } {
   let dx = 0, dy = 0
   if (keysDown.has('arrowleft')  || keysDown.has('a')) dx -= 1
   if (keysDown.has('arrowright') || keysDown.has('d')) dx += 1
-  if (keysDown.has('arrowup')    || keysDown.has('w')) dy -= 1
-  if (keysDown.has('arrowdown')  || keysDown.has('s')) dy += 1
+  if (keysDown.has('arrowup')    || keysDown.has('w')) dy += 1
+  if (keysDown.has('arrowdown')  || keysDown.has('s')) dy -= 1
 
   if (dx !== 0 && dy !== 0) {
     const len = Math.sqrt(dx * dx + dy * dy)
@@ -152,7 +152,7 @@ function setupMobileControls(): void {
 
   joystickManager.on('move', (evt) => {
     const vector = evt.data?.vector
-    if (vector) { joyDx = vector.x; joyDy = -vector.y }
+    if (vector) { joyDx = vector.x; joyDy = vector.y }
   })
   joystickManager.on('end', () => { joyDx = 0; joyDy = 0 })
 

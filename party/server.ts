@@ -19,6 +19,7 @@ export default class SoccerServer implements Party.Server {
   private tickInterval: ReturnType<typeof setInterval> | null = null
   private countdownTimer: ReturnType<typeof setInterval> | null = null
   private kickoffTimeout: ReturnType<typeof setTimeout> | null = null
+  private lastTickAt = 0
 
   constructor(readonly room: Party.Room) {
     this.state = makeInitialState()
@@ -65,8 +66,20 @@ export default class SoccerServer implements Party.Server {
     const msg: ClientMsg = JSON.parse(message) as ClientMsg
     if (msg.type === 'input') {
       this.inputs.set(sender.id, msg.input)
+      this.ensureTicking()
     } else if (msg.type === 'lobby') {
       this.handleLobbyMsg(msg, sender.id)
+    }
+  }
+
+  private ensureTicking(): void {
+    const gamePhases = new Set(['kickoff', 'playing', 'freekick', 'penalty', 'corner', 'throwin', 'goalkick'])
+    if (!gamePhases.has(this.state.phase)) return
+    // If tick hasn't run in 5× interval, restart it (handles DO hibernation)
+    const now = Date.now()
+    if (now - this.lastTickAt > TICK_MS * 5) {
+      if (this.tickInterval !== null) { clearInterval(this.tickInterval); this.tickInterval = null }
+      this.tickInterval = setInterval(() => this.tick(), TICK_MS)
     }
   }
 
@@ -128,28 +141,62 @@ export default class SoccerServer implements Party.Server {
   private startGame() {
     const { home, away } = this.state.lobby!
     this.state.players = buildPlayers(home!, away!)
+    this.state.kickoffTeam = this.state.kickoffTeam ?? (Math.random() < 0.5 ? 'home' : 'away')
+    this.state.timeLeft = 5 * 60
+    this.state.countdown = undefined
+    this.state.phase = 'kickoff'
+
+    // Give ball to kickoff team's controlled player at center
+    const kickoffPlayer = this.state.players.find(
+      p => p.team === this.state.kickoffTeam && p.isControlled
+    )
     this.state.ball = {
       pos: { x: FIELD.CENTER_X, y: FIELD.CENTER_Y, z: 0 },
       vel: { x: 0, y: 0, z: 0 },
-      ownerId: null,
+      ownerId: kickoffPlayer?.id ?? null,
     }
-    this.state.phase = 'kickoff'
-    this.state.kickoffTeam = Math.random() < 0.5 ? 'home' : 'away'
-    this.state.timeLeft = 5 * 60
-    this.state.countdown = undefined
+    if (kickoffPlayer) {
+      kickoffPlayer.hasBall = true
+      kickoffPlayer.pos = { x: FIELD.CENTER_X, y: FIELD.CENTER_Y }
+    }
+
     this.broadcast({ type: 'state', state: this.state })
     if (this.tickInterval) { clearInterval(this.tickInterval); this.tickInterval = null }
+    this.lastTickAt = Date.now()
     this.tickInterval = setInterval(() => this.tick(), TICK_MS)
-    // Auto-start playing after 2s kickoff display
-    if (this.kickoffTimeout) clearTimeout(this.kickoffTimeout)
-    this.kickoffTimeout = setTimeout(() => {
-      if (this.state.phase === 'kickoff') this.state.phase = 'playing'
-      this.kickoffTimeout = null
-    }, 2000)
   }
 
   private tick(): void {
+    this.lastTickAt = Date.now()
     const { state } = this
+
+    // Kickoff: only kickoff team's player can move; any action starts the game
+    if (state.phase === 'kickoff') {
+      const kickoffTeam = state.kickoffTeam
+      if (kickoffTeam) {
+        const connId = [...this.assignments.entries()].find(([, t]) => t === kickoffTeam)?.[0]
+        const input = connId ? (this.inputs.get(connId) ?? null) : null
+        const player = state.players.find(p => p.team === kickoffTeam && p.isControlled)
+
+        if (player && input) {
+          tickPlayerMovement(player, input)
+          // Keep ball attached to kickoff player
+          if (player.hasBall) {
+            state.ball.pos.x = player.pos.x + player.facing.x * 1.2
+            state.ball.pos.y = player.pos.y + player.facing.y * 1.2
+            state.ball.ownerId = player.id
+          }
+          // Any action starts the game
+          if (input.action && player.hasBall) {
+            const translated = translateActionForBall(input)
+            handleBallAction(state, player, translated)
+            state.phase = 'playing'
+          }
+        }
+      }
+      this.broadcast({ type: 'state', state })
+      return
+    }
 
     // Setpiece: allow the setpiece team's controlled player to resume play
     if (['freekick', 'penalty', 'corner', 'throwin', 'goalkick'].includes(state.phase)) {
@@ -177,7 +224,7 @@ export default class SoccerServer implements Party.Server {
       return
     }
 
-    if (state.phase !== 'playing' && state.phase !== 'kickoff') {
+    if (state.phase !== 'playing') {
       return
     }
 
@@ -248,23 +295,28 @@ export default class SoccerServer implements Party.Server {
 
     // Goal detection
     if (checkGoal(state)) {
-      const kickoffTeam = state.score.home > state.score.away ? 'away' : 'home'
+      const kickoffTeam: 'home' | 'away' = state.score.home > state.score.away ? 'away' : 'home'
       state.kickoffTeam = kickoffTeam
       state.phase = 'kickoff'
-      state.ball = { pos: { x: FIELD.CENTER_X, y: FIELD.CENTER_Y, z: 0 }, vel: { x: 0, y: 0, z: 0 }, ownerId: null }
+      // Reset controlled: 1st outfielder of each team
       for (const p of state.players) {
         p.hasBall = false
-        // Reset controlled: 1st outfielder of each team
         const isFirst = state.players.filter(pp => pp.team === p.team && pp.role !== 'gk').indexOf(p) === 0
         p.isControlled = isFirst
       }
-      if (this.kickoffTimeout) clearTimeout(this.kickoffTimeout)
-      this.kickoffTimeout = setTimeout(() => {
-        if (this.state.phase === 'kickoff') this.state.phase = 'playing'
-        this.kickoffTimeout = null
-      }, 2000)
+      // Attach ball to kickoff team's controlled player at center
+      const kickoffPlayer = state.players.find(p => p.team === kickoffTeam && p.isControlled)
+      state.ball = {
+        pos: { x: FIELD.CENTER_X, y: FIELD.CENTER_Y, z: 0 },
+        vel: { x: 0, y: 0, z: 0 },
+        ownerId: kickoffPlayer?.id ?? null,
+      }
+      if (kickoffPlayer) {
+        kickoffPlayer.hasBall = true
+        kickoffPlayer.pos = { x: FIELD.CENTER_X, y: FIELD.CENTER_Y }
+      }
       this.broadcast({ type: 'state', state })
-      return  // skip rest of tick
+      return
     }
 
     // Header: airborne ball descending within reach of a player

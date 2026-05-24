@@ -17,7 +17,6 @@ let myTeam: 'home' | 'away' | null = null
 let currentRoomId: string | null = null
 let activePhase: string | null = null
 
-// Exported so screens/input can call them
 export function getMyTeam() { return myTeam }
 export function getCurrentRoomId() { return currentRoomId }
 
@@ -75,18 +74,37 @@ export function sendLobby(payload: { color?: TeamColor; jerseyNumbers?: [number,
 const screenEl = document.getElementById('screen')!
 let gameActive = false
 
+// Web Audio whistle
+function playWhistle() {
+  try {
+    const ctx = new AudioContext()
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+    osc.connect(gain)
+    gain.connect(ctx.destination)
+    osc.type = 'sine'
+    osc.frequency.setValueAtTime(1200, ctx.currentTime)
+    osc.frequency.exponentialRampToValueAtTime(900, ctx.currentTime + 0.3)
+    gain.gain.setValueAtTime(0.4, ctx.currentTime)
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5)
+    osc.start()
+    osc.stop(ctx.currentTime + 0.5)
+  } catch { /* ignore if AudioContext unavailable */ }
+}
+
 function onStateUpdate(state: GameState) {
-  // Always update HUD and game state if game is running
   if (gameActive) {
     updateGameState(state)
     updateHUDState(state)
   }
 
-  // Screen transitions only on phase change
+  // Same phase: only update lobby/countdown renders, skip transition logic
   if (state.phase === activePhase) {
-    if (state.phase === 'lobby') mountLobby(screenEl, state)
+    if (state.phase === 'lobby' || state.phase === 'countdown') mountLobby(screenEl, state)
     return
   }
+
+  const prevPhase = activePhase
   activePhase = state.phase
 
   if (state.phase === 'lobby' || state.phase === 'countdown') {
@@ -117,6 +135,10 @@ function onStateUpdate(state: GameState) {
       if (myTeam) initHUD(myTeam)
       initInput()
       gameActive = true
+    }
+    // Whistle on every kickoff
+    if (state.phase === 'kickoff' && prevPhase !== 'kickoff') {
+      playWhistle()
     }
   }
 }
