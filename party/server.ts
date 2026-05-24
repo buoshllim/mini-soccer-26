@@ -10,6 +10,8 @@ export default class SoccerServer implements Party.Server {
   private inputs: Map<string, PlayerInput> = new Map()
   private assignments: Map<string, 'home' | 'away'> = new Map()
   private tickInterval: ReturnType<typeof setInterval> | null = null
+  private countdownTimer: ReturnType<typeof setInterval> | null = null
+  private kickoffTimeout: ReturnType<typeof setTimeout> | null = null
 
   constructor(readonly room: Party.Room) {
     this.state = makeInitialState()
@@ -34,11 +36,20 @@ export default class SoccerServer implements Party.Server {
   onClose(conn: Party.Connection) {
     this.assignments.delete(conn.id)
     this.inputs.delete(conn.id)
-    if (this.tickInterval) {
-      clearInterval(this.tickInterval)
-      this.tickInterval = null
+
+    if (this.assignments.size < 2 && this.state.lobby) {
+      this.state.lobby = undefined
+      this.state.phase = 'lobby'
     }
-    this.state = makeInitialState()
+
+    if (this.assignments.size === 0) {
+      // Room is empty — clean everything up
+      if (this.tickInterval) { clearInterval(this.tickInterval); this.tickInterval = null }
+      if (this.countdownTimer) { clearInterval(this.countdownTimer); this.countdownTimer = null }
+      if (this.kickoffTimeout) { clearTimeout(this.kickoffTimeout); this.kickoffTimeout = null }
+      this.state = makeInitialState()
+    }
+
     this.broadcast({ type: 'state', state: this.state })
   }
 
@@ -90,10 +101,12 @@ export default class SoccerServer implements Party.Server {
     this.state.countdown = 3
     this.broadcast({ type: 'state', state: this.state })
     let n = 3
-    const timer = setInterval(() => {
+    if (this.countdownTimer) clearInterval(this.countdownTimer)
+    this.countdownTimer = setInterval(() => {
       n--
       if (n <= 0) {
-        clearInterval(timer)
+        clearInterval(this.countdownTimer!)
+        this.countdownTimer = null
         this.startGame()
       } else {
         this.state.countdown = n
@@ -117,10 +130,10 @@ export default class SoccerServer implements Party.Server {
     this.broadcast({ type: 'state', state: this.state })
     this.tickInterval = setInterval(() => this.tick(), TICK_MS)
     // Auto-start playing after 2s kickoff display
-    setTimeout(() => {
-      if (this.state.phase === 'kickoff') {
-        this.state.phase = 'playing'
-      }
+    if (this.kickoffTimeout) clearTimeout(this.kickoffTimeout)
+    this.kickoffTimeout = setTimeout(() => {
+      if (this.state.phase === 'kickoff') this.state.phase = 'playing'
+      this.kickoffTimeout = null
     }, 2000)
   }
 
@@ -159,10 +172,6 @@ export default class SoccerServer implements Party.Server {
 
   private broadcast(msg: ServerMsg) {
     this.room.broadcast(JSON.stringify(msg))
-  }
-
-  private getConnId(team: 'home' | 'away'): string | undefined {
-    return [...this.assignments.entries()].find(([, t]) => t === team)?.[0]
   }
 }
 
