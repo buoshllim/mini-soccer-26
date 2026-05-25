@@ -53,23 +53,23 @@ export function mountLobby(el: HTMLElement, state?: GameState): void {
 
       ${waitingForOpponent ? `
         <div style="text-align:center">
-          <p style="margin:0 0 8px;font-size:13px;color:#888">친구에게 이 코드를 알려주세요</p>
+          <p style="margin:0 0 8px;font-size:13px;color:#888">Share this code with your friend</p>
           <div style="font-size:52px;font-weight:900;letter-spacing:10px;color:#fff;
             background:rgba(255,255,255,0.08);padding:16px 24px;border-radius:12px;
             font-family:monospace">${roomCode}</div>
         </div>
-        <p style="color:#555;font-size:13px;margin:0">상대방 접속 대기 중...</p>
+        <p style="color:#555;font-size:13px;margin:0">Waiting for opponent...</p>
         <button id="leave-btn" style="width:100%;padding:10px;border-radius:8px;
           background:transparent;color:#555;border:1px solid #333;font-size:13px;cursor:pointer;">
-          나가기
+          Leave
         </button>
       ` : ''}
 
       ${phase === 'lobby' && myTeam && lobby ? `
         <div style="background:rgba(255,255,255,0.06);border-radius:12px;padding:18px;width:100%;box-sizing:border-box">
-          <p style="margin:0 0 8px;font-size:12px;color:#888">닉네임</p>
+          <p style="margin:0 0 8px;font-size:12px;color:#888">Username</p>
           <input id="username-input" type="text" maxlength="12"
-            placeholder="이름을 입력하세요"
+            placeholder="Enter your name"
             value="${_username}"
             autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
             style="width:100%;box-sizing:border-box;padding:10px 12px;border-radius:8px;
@@ -78,7 +78,7 @@ export function mountLobby(el: HTMLElement, state?: GameState): void {
         </div>
 
         <div style="background:rgba(255,255,255,0.06);border-radius:12px;padding:18px;width:100%;box-sizing:border-box">
-          <p style="margin:0 0 10px;font-size:12px;color:#888">팀 색상</p>
+          <p style="margin:0 0 10px;font-size:12px;color:#888">Team Color</p>
           <div style="display:flex;gap:10px;justify-content:center">
             ${colors.map(c => {
               const taken = oppSlot?.color === c
@@ -97,22 +97,22 @@ export function mountLobby(el: HTMLElement, state?: GameState): void {
 
         <div style="width:100%;display:flex;align-items:center;justify-content:space-between">
           <div style="font-size:13px;color:${oppSlot?.ready ? '#4ade80' : '#888'}">
-            상대방: ${oppSlot?.ready ? '✅ 준비됨' : '⏳ 대기중'}
+            Opponent: ${oppSlot?.ready ? '✅ Ready' : '⏳ Waiting'}
           </div>
           <button id="ready-btn" style="
             padding:12px 28px;border-radius:8px;font-size:16px;font-weight:bold;cursor:pointer;
             background:${mySlot?.ready ? '#4ade80' : '#3b82f6'};color:#fff;border:none;
-          ">${mySlot?.ready ? '취소' : '준비!'}</button>
+          ">${mySlot?.ready ? 'Cancel' : 'Ready!'}</button>
         </div>
 
         <button id="leave-btn" style="width:100%;padding:10px;border-radius:8px;
           background:transparent;color:#555;border:1px solid #333;font-size:13px;cursor:pointer;">
-          나가기
+          Leave
         </button>
       ` : ''}
 
       ${!myTeam && phase === 'lobby' ? `
-        <p style="color:#888;font-size:14px">방이 가득 찼습니다</p>
+        <p style="color:#888;font-size:14px">Room is full</p>
       ` : ''}
 
       <button id="bgm-btn" style="
@@ -168,7 +168,7 @@ export function mountLobby(el: HTMLElement, state?: GameState): void {
   })
 
   el.querySelector('#leave-btn')?.addEventListener('click', () => {
-    if (confirm('정말 나가시겠습니까?')) goHome()
+    if (confirm('Are you sure you want to leave?')) goHome()
   })
 
   el.querySelector('#bgm-btn')?.addEventListener('click', () => {

@@ -124,7 +124,7 @@ function drawScoreTimer(state: GameState) {
   // Timer below score
   ctx.fillStyle = '#aaa'
   ctx.font = portrait ? '10px sans-serif' : mob ? '7px sans-serif' : '11px sans-serif'
-  ctx.fillText(`${half === 1 ? '전반' : '후반'} ${mins}:${secs}`, midX, boxY + (portrait ? 33 : mob ? 22 : 42))
+  ctx.fillText(`${half === 1 ? '1st' : '2nd'} ${mins}:${secs}`, midX, boxY + (portrait ? 33 : mob ? 22 : 42))
 
   // Home: dot + username (left)
   ctx.fillStyle = homeColor
@@ -136,11 +136,11 @@ function drawScoreTimer(state: GameState) {
   ctx.font = portrait ? '10px sans-serif' : mob ? '7px sans-serif' : 'bold 11px sans-serif'
   ctx.textAlign = 'left'
   ctx.textBaseline = 'middle'
-  ctx.fillText(homeUsername, boxX + dotR * 2 + 4, boxY + (portrait ? 15 : mob ? 10 : 20), nameMaxW)
+  ctx.fillText(homeUsername, boxX + dotR * 2 + 10, boxY + (portrait ? 15 : mob ? 10 : 20), nameMaxW)
 
   // Away: username + dot (right)
   ctx.textAlign = 'right'
-  ctx.fillText(awayUsername, boxX + boxW - dotR * 2 - 4, boxY + (portrait ? 15 : mob ? 10 : 20), nameMaxW)
+  ctx.fillText(awayUsername, boxX + boxW - dotR * 2 - 10, boxY + (portrait ? 15 : mob ? 10 : 20), nameMaxW)
 
   ctx.fillStyle = awayColor
   ctx.beginPath()
@@ -242,6 +242,6 @@ function drawKeyHints() {
   ctx.font = 'bold 11px monospace'
   ctx.fillStyle = '#ffd700'
   ctx.textAlign = 'left'
-  ctx.fillText('SPACE/슛 버튼 오래 눌렀다 떼면 강슛', 18, canvas.height - 17)
+  ctx.fillText('Hold SPACE/Shoot button then release for a power shot', 18, canvas.height - 17)
   ctx.restore()
 }

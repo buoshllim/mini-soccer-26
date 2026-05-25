@@ -20,15 +20,15 @@ export function mountResult(el: HTMLElement, state: GameState) {
   let winnerColor = ''
 
   if (score.home > score.away) {
-    winnerLabel = '홈 팀 승리!'
+    winnerLabel = 'Home Team Wins!'
     winnerUsername = homeUsername
     winnerColor = homeColor
   } else if (score.away > score.home) {
-    winnerLabel = '어웨이 팀 승리!'
+    winnerLabel = 'Away Team Wins!'
     winnerUsername = awayUsername
     winnerColor = awayColor
   } else {
-    winnerLabel = '무승부!'
+    winnerLabel = 'Draw!'
   }
 
   const homePoss = Math.round((stats.possession.home / (stats.possession.home + stats.possession.away + 1)) * 100)
@@ -55,18 +55,18 @@ export function mountResult(el: HTMLElement, state: GameState) {
             <span>${homeUsername}</span>
             <div style="width:7px;height:7px;border-radius:50%;background:${homeColor};flex-shrink:0"></div>
           </div>
-          <span style="color:#555;font-size:clamp(9px,2.2vw,11px)">팀</span>
+          <span style="color:#555;font-size:clamp(9px,2.2vw,11px)">Team</span>
           <div style="display:flex;align-items:center;gap:4px">
             <div style="width:7px;height:7px;border-radius:50%;background:${awayColor};flex-shrink:0"></div>
             <span>${awayUsername}</span>
           </div>
 
           <span style="text-align:right">${homePoss}%</span>
-          <span style="color:#555;font-size:clamp(9px,2.2vw,11px)">점유율</span>
+          <span style="color:#555;font-size:clamp(9px,2.2vw,11px)">Possession</span>
           <span style="text-align:left">${awayPoss}%</span>
 
           <span style="text-align:right">${stats.shots.home}</span>
-          <span style="color:#555;font-size:clamp(9px,2.2vw,11px)">슈팅</span>
+          <span style="color:#555;font-size:clamp(9px,2.2vw,11px)">Shots</span>
           <span style="text-align:left">${stats.shots.away}</span>
         </div>
       </div>
@@ -74,12 +74,12 @@ export function mountResult(el: HTMLElement, state: GameState) {
       <button id="btn-rematch" style="display:block;width:100%;padding:clamp(7px,2vw,10px);
         border-radius:8px;background:#6366f1;color:#fff;border:none;
         font-size:clamp(13px,3.5vw,15px);cursor:pointer;font-weight:bold;margin-bottom:8px">
-        로비로 돌아가기
+        Return to Lobby
       </button>
       <button id="btn-lobby" style="display:block;width:100%;padding:clamp(7px,2vw,10px);
         border-radius:8px;background:#374151;color:#fff;border:none;
         font-size:clamp(13px,3.5vw,15px);cursor:pointer;font-weight:bold">
-        처음으로
+        Home
       </button>
     </div>
   `

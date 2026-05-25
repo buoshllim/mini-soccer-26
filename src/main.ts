@@ -211,7 +211,7 @@ function showReconnectOverlay() {
   const el = document.createElement('div')
   el.id = 'reconnect-overlay'
   el.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:200;color:#fff;font-size:20px;gap:12px'
-  el.innerHTML = `<div style="font-size:32px">📡</div><div>재접속 중...</div>`
+  el.innerHTML = `<div style="font-size:32px">📡</div><div>Reconnecting...</div>`
   document.body.appendChild(el)
 }
 
@@ -303,22 +303,41 @@ function showHalftimeOverlay(state: GameState) {
   const { score, stats } = state
   const homePoss = Math.round((stats.possession.home / (stats.possession.home + stats.possession.away + 1)) * 100)
 
+  const colorHex: Record<string, string> = {
+    blue: '#3b82f6', red: '#ef4444', green: '#16a34a', yellow: '#facc15',
+  }
+  const homeColor = colorHex[state.lobby?.home?.color ?? 'blue'] ?? '#3b82f6'
+  const awayColor = colorHex[state.lobby?.away?.color ?? 'red'] ?? '#ef4444'
+  const homeUsername = (state.lobby?.home as any)?.username || 'Home'
+  const awayUsername = (state.lobby?.away as any)?.username || 'Away'
+
   screenEl.innerHTML = `
     <div style="background:rgba(0,0,0,0.92);padding:clamp(10px,3vw,20px) clamp(14px,5vw,36px);
-      border-radius:16px;text-align:center;width:min(320px,90vw);box-sizing:border-box">
-      <h2 style="margin:0 0 6px;font-size:clamp(16px,4vw,20px)">하프타임</h2>
+      border-radius:16px;text-align:center;width:min(400px,94vw);box-sizing:border-box">
+      <h2 style="margin:0 0 6px;font-size:clamp(16px,4vw,20px)">Half Time</h2>
       <div style="font-size:clamp(32px,8vw,44px);font-weight:bold;margin:4px 0">${score.home} : ${score.away}</div>
       <div style="margin-top:10px;font-size:clamp(11px,3vw,13px);color:#aaa">
         <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:4px 8px;align-items:center">
+          <div style="display:flex;align-items:center;gap:5px;justify-content:flex-end">
+            <span>${homeUsername}</span>
+            <div style="width:8px;height:8px;border-radius:50%;background:${homeColor};flex-shrink:0"></div>
+          </div>
+          <span style="color:#666;font-size:clamp(9px,2.2vw,11px)">Team</span>
+          <div style="display:flex;align-items:center;gap:5px">
+            <div style="width:8px;height:8px;border-radius:50%;background:${awayColor};flex-shrink:0"></div>
+            <span>${awayUsername}</span>
+          </div>
+
           <span style="text-align:right">${homePoss}%</span>
-          <span style="color:#666">점유율</span>
+          <span style="color:#666">Possession</span>
           <span style="text-align:left">${100 - homePoss}%</span>
+
           <span style="text-align:right">${stats.shots.home}</span>
-          <span style="color:#666">슈팅</span>
+          <span style="color:#666">Shots</span>
           <span style="text-align:left">${stats.shots.away}</span>
         </div>
       </div>
-      <p style="margin:8px 0 0;font-size:12px;color:#555">후반전 자동 시작...</p>
+      <p style="margin:8px 0 0;font-size:12px;color:#555">2nd half starting soon...</p>
     </div>`
   screenEl.classList.remove('hidden')
 }
