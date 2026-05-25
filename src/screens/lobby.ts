@@ -116,9 +116,9 @@ export function mountLobby(el: HTMLElement, state?: GameState): void {
       ` : ''}
 
       <button id="bgm-btn" style="
-        background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.22);
+        background:rgba(255,255,255,0.18);border:1.5px solid rgba(255,255,255,0.45);
         border-radius:24px;cursor:pointer;font-size:22px;padding:8px 16px;line-height:1;
-        color:#fff;filter:${sound.isBgmEnabled() ? 'none' : 'grayscale(1) brightness(0.5)'}">
+        opacity:${sound.isBgmEnabled() ? '1' : '0.35'}">
         ${sound.isBgmEnabled() ? '🎵' : '🔇'}
       </button>
     </div>
@@ -176,7 +176,7 @@ export function mountLobby(el: HTMLElement, state?: GameState): void {
     const btn = el.querySelector<HTMLButtonElement>('#bgm-btn')
     if (btn) {
       btn.textContent = on ? '🎵' : '🔇'
-      btn.style.filter = on ? 'none' : 'grayscale(1) brightness(0.5)'
+      btn.style.opacity = on ? '1' : '0.35'
     }
   })
 }
