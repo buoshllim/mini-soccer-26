@@ -34,7 +34,7 @@ class SoundManager {
                    'bump-light', 'bump-heavy', 'ball-pickup', 'victory', 'lobby-bgm', 'countdown-beep']
     for (const name of names) {
       if (this.clips.has(name)) continue
-      const audio = new Audio(`/sounds/${name}.mp3`)
+      const audio = new Audio(`./sounds/${name}.mp3`)
       audio.preload = 'auto'
       this.clips.set(name, audio)
     }
