@@ -13,6 +13,10 @@ let animFrameId: number | null = null
 const playerMeshes = new Map<string, THREE.Group>()
 const indicatorMeshes = new Map<string, THREE.Mesh>()
 let ballMesh: THREE.Mesh | null = null
+let ballShadow: THREE.Mesh | null = null
+let kickTime: number | null = null       // timestamp when ball was last kicked
+let kickSpeed = 0                        // speed at kick moment
+let prevBallOwnerId: string | null | undefined = undefined
 let latestState: GameState | null = null
 let rendererMyTeam: 'home' | 'away' | null = null
 
@@ -67,8 +71,13 @@ export function stopGame(): void {
   indicatorMeshes.clear()
   if (ballMesh && scene) scene.remove(ballMesh)
   ballMesh = null
+  if (ballShadow && scene) scene.remove(ballShadow)
+  ballShadow = null
   rendererMyTeam = null
-  if (renderer) renderer.dispose()
+  if (renderer) {
+    renderer.clear()
+    renderer.dispose()
+  }
   renderer = null
   window.removeEventListener('touchstart', onTouchStart)
   window.removeEventListener('touchmove', onTouchMove)
@@ -76,6 +85,7 @@ export function stopGame(): void {
   camera = null
   latestState = null
   lastRenderTime = 0
+  kickTime = null; kickSpeed = 0; prevBallOwnerId = undefined
   window.removeEventListener('resize', onResize)
   window.removeEventListener('wheel', onWheel)
   // Hide canvas so the soccer field doesn't linger behind other screens
@@ -297,6 +307,13 @@ function buildBall(): void {
   ballMesh.add(new THREE.LineSegments(seamGeo, seamMat))
 
   scene.add(ballMesh)
+
+  // Ground shadow — scales down and fades as ball rises
+  const shadowGeo = new THREE.CircleGeometry(0.7, 16)
+  const shadowMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.35 })
+  ballShadow = new THREE.Mesh(shadowGeo, shadowMat)
+  ballShadow.position.z = 0.05
+  scene.add(ballShadow)
 }
 
 // ─── Character building ───────────────────────────────────────────────────────
@@ -437,7 +454,46 @@ function syncPlayers(state: GameState): void {
 function syncBall(state: GameState): void {
   if (!ballMesh) return
   const [wx, wy] = gameToWorld(state.ball.pos.x, state.ball.pos.y)
-  ballMesh.position.set(wx, wy, 0.7)  // fixed height, no z-axis
+
+  // Detect kick: owner → free with high speed
+  const curOwnerId = state.ball.ownerId
+  if (prevBallOwnerId !== undefined && prevBallOwnerId !== null && curOwnerId === null) {
+    const spd = Math.hypot(state.ball.vel.x, state.ball.vel.y)
+    if (spd > FIELD.KICK_MIN_SPEED) {
+      kickTime = performance.now()
+      kickSpeed = spd
+    }
+  }
+  if (curOwnerId !== null) kickTime = null  // dribbling: reset
+  prevBallOwnerId = curOwnerId
+
+  // Time-based parabolic arc — only strong kicks get visible arc
+  let z = 0.7
+  if (kickTime !== null) {
+    const elapsed = (performance.now() - kickTime) / 1000
+    const threshold = FIELD.KICK_MIN_SPEED * 1.6  // ~35: weak kicks stay flat
+    const powerRatio = Math.max(0, (kickSpeed - threshold) / (FIELD.KICK_MAX_SPEED - threshold))
+    const maxHeight = Math.pow(powerRatio, 1.5) * 5.5  // 1.5 power: weak kicks get some arc, strong kicks peak at 5.5
+    const flightDuration = 0.3 + powerRatio * 0.45  // 0.3s~0.75s
+    const t = Math.min(elapsed / flightDuration, 1)
+    // Strong kicks travel flat first, then arc — flatPhase scales with power
+    const flatPhase = powerRatio * 0.3
+    const arcZ = t < flatPhase
+      ? 0
+      : maxHeight * Math.sin(((t - flatPhase) / (1 - flatPhase)) * Math.PI)
+    z = 0.7 + arcZ
+    if (t >= 1) kickTime = null
+  }
+
+  ballMesh.position.set(wx, wy, z)
+
+  if (ballShadow) {
+    ballShadow.position.set(wx, wy, 0.05)
+    const lift = z - 0.7
+    const scale = Math.max(0.35, 1 - lift / 10)
+    ballShadow.scale.setScalar(scale);
+    (ballShadow.material as THREE.MeshBasicMaterial).opacity = scale * 0.35
+  }
 }
 
 // Floating cone above controlled field players — uses team uniform color with glow
@@ -540,8 +596,10 @@ function renderLoop(): void {
 }
 
 function rollBall(state: GameState, dt: number): void {
-  if (!ballMesh || state.ball.ownerId !== null) return
-  const { vel } = state.ball
+  if (!ballMesh) return
+  const vel = state.ball.ownerId !== null
+    ? (state.players.find(p => p.id === state.ball.ownerId)?.vel ?? { x: 0, y: 0 })
+    : state.ball.vel
   const speed = Math.sqrt(vel.x ** 2 + vel.y ** 2)
   if (speed < 0.2) return
 

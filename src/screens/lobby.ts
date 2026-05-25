@@ -1,5 +1,5 @@
 import type { GameState, TeamColor } from '../types'
-import { sendLobby, getCurrentRoomId } from '../main'
+import { sendLobby, getCurrentRoomId, goHome } from '../main'
 
 let _color: TeamColor | null = null
 let _username = ''
@@ -58,6 +58,10 @@ export function mountLobby(el: HTMLElement, state?: GameState): void {
             font-family:monospace">${roomCode}</div>
         </div>
         <p style="color:#555;font-size:13px;margin:0">상대방 접속 대기 중...</p>
+        <button id="leave-btn" style="width:100%;padding:10px;border-radius:8px;
+          background:transparent;color:#555;border:1px solid #333;font-size:13px;cursor:pointer;">
+          나가기
+        </button>
       ` : ''}
 
       ${phase === 'lobby' && myTeam && lobby ? `
@@ -66,6 +70,7 @@ export function mountLobby(el: HTMLElement, state?: GameState): void {
           <input id="username-input" type="text" maxlength="12"
             placeholder="이름을 입력하세요"
             value="${_username}"
+            autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
             style="width:100%;box-sizing:border-box;padding:10px 12px;border-radius:8px;
               border:1px solid rgba(255,255,255,0.15);background:rgba(0,0,0,0.3);
               color:#fff;font-size:15px;outline:none;" />
@@ -98,6 +103,11 @@ export function mountLobby(el: HTMLElement, state?: GameState): void {
             background:${mySlot?.ready ? '#4ade80' : '#3b82f6'};color:#fff;border:none;
           ">${mySlot?.ready ? '취소' : '준비!'}</button>
         </div>
+
+        <button id="leave-btn" style="width:100%;padding:10px;border-radius:8px;
+          background:transparent;color:#555;border:1px solid #333;font-size:13px;cursor:pointer;">
+          나가기
+        </button>
       ` : ''}
 
       ${!myTeam && phase === 'lobby' ? `
@@ -147,5 +157,9 @@ export function mountLobby(el: HTMLElement, state?: GameState): void {
     if (!_color) return
     const isReady = !(mySlot?.ready ?? false)
     sendLobby({ color: _color, ready: isReady, username: _username || undefined })
+  })
+
+  el.querySelector('#leave-btn')?.addEventListener('click', () => {
+    if (confirm('정말 나가시겠습니까?')) goHome()
   })
 }

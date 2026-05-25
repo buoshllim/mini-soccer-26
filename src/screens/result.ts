@@ -1,5 +1,5 @@
 import type { GameState, TeamColor } from '../types'
-import { goHome } from '../main'
+import { goHome, sendRematch } from '../main'
 
 export function setResultRoomId(_id: string) { /* no-op: rematch removed */ }
 
@@ -71,6 +71,11 @@ export function mountResult(el: HTMLElement, state: GameState) {
         </div>
       </div>
 
+      <button id="btn-rematch" style="display:block;width:100%;padding:clamp(7px,2vw,10px);
+        border-radius:8px;background:#6366f1;color:#fff;border:none;
+        font-size:clamp(13px,3.5vw,15px);cursor:pointer;font-weight:bold;margin-bottom:8px">
+        로비로 돌아가기
+      </button>
       <button id="btn-lobby" style="display:block;width:100%;padding:clamp(7px,2vw,10px);
         border-radius:8px;background:#374151;color:#fff;border:none;
         font-size:clamp(13px,3.5vw,15px);cursor:pointer;font-weight:bold">
@@ -79,5 +84,6 @@ export function mountResult(el: HTMLElement, state: GameState) {
     </div>
   `
 
+  el.querySelector('#btn-rematch')!.addEventListener('click', () => sendRematch())
   el.querySelector('#btn-lobby')!.addEventListener('click', () => goHome())
 }

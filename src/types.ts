@@ -52,6 +52,8 @@ export type ServerMsg =
 export type ClientMsg =
   | { type: 'input'; input: PlayerInput }
   | { type: 'lobby'; color?: TeamColor; ready?: boolean; username?: string }
+  | { type: 'solo' }
+  | { type: 'rematch' }
 
 export const FIELD = {
   W: 100, H: 60,

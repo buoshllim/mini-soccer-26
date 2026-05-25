@@ -7,6 +7,7 @@ import { mountResult, setResultRoomId } from './screens/result'
 import { startGame, stopGame, updateGameState, setRendererTeam } from './game/renderer'
 import { initHUD, destroyHUD, updateHUDState, spawnConfetti } from './game/ui'
 import { initInput, destroyInput } from './game/input'
+import { sound } from './game/sound'
 
 const PARTY_HOST = import.meta.env.DEV
   ? 'localhost:1999'
@@ -16,6 +17,7 @@ let socket: PartySocket | null = null
 let myTeam: 'home' | 'away' | null = null
 let currentRoomId: string | null = null
 let activePhase: string | null = null
+let soloGame = false
 
 export function getMyTeam() { return myTeam }
 export function getCurrentRoomId() { return currentRoomId }
@@ -25,9 +27,10 @@ export function goHome() {
   const s = socket
   socket = null
   if (s) s.close()
-  activePhase = null; myTeam = null; currentRoomId = null
+  activePhase = null; myTeam = null; currentRoomId = null; soloGame = false; prevCountdown = undefined
   setRendererTeam(null)
   stopGame(); destroyInput(); destroyHUD()
+  sound.dispose()
   gameActive = false
   prevScore = { home: 0, away: 0 }
   resetLobbyLocalState()
@@ -36,9 +39,11 @@ export function goHome() {
   mountHome(screenEl)
 }
 
-export function joinRoom(roomId: string) {
+export function joinRoom(roomId: string, solo = false) {
   currentRoomId = roomId
+  soloGame = solo
   setResultRoomId(roomId)
+  sound.preload()
   if (socket) socket.close()
 
   socket = new PartySocket({ host: PARTY_HOST, room: roomId })
@@ -50,6 +55,9 @@ export function joinRoom(roomId: string) {
       myTeam = msg.team
       ;(window as any).__myTeam = msg.team
       setRendererTeam(msg.team)
+      if (soloGame) {
+        socket?.send(JSON.stringify({ type: 'solo' } satisfies ClientMsg))
+      }
     } else if (msg.type === 'state') {
       onStateUpdate(msg.state)
     } else if (msg.type === 'error') {
@@ -77,9 +85,15 @@ export function sendLobby(payload: { color?: TeamColor; ready?: boolean; usernam
   socket.send(JSON.stringify(msg))
 }
 
+export function sendRematch() {
+  if (!socket) return
+  socket.send(JSON.stringify({ type: 'rematch' } satisfies ClientMsg))
+}
+
 const screenEl = document.getElementById('screen')!
 let gameActive = false
 let prevScore = { home: 0, away: 0 }
+let prevCountdown: number | undefined = undefined
 let ceremonyTimer: ReturnType<typeof setTimeout> | null = null
 
 // Web Audio whistle
@@ -206,15 +220,23 @@ function hideReconnectOverlay() {
 }
 
 function onStateUpdate(state: GameState) {
+  // Countdown beep — checked first so countdown=3 (phase transition packet) isn't missed
+  if (state.phase === 'countdown' && state.countdown !== prevCountdown) {
+    sound.play('countdown-beep', 0.1)
+    prevCountdown = state.countdown
+  }
+
   if (gameActive) {
     // Detect goal
     if (state.score.home !== prevScore.home || state.score.away !== prevScore.away) {
       showGoalCeremony(state.score)
-      playFanfare()
+      sound.play('goal-cheer')
+      sound.play('fanfare')
     }
     prevScore = { ...state.score }
     updateGameState(state)
     updateHUDState(state)
+    sound.onStateUpdate(state)
   }
 
   // Same phase: only update lobby/countdown renders, skip transition logic
@@ -233,6 +255,8 @@ function onStateUpdate(state: GameState) {
       destroyHUD()
       gameActive = false
     }
+    sound.startLobbyBgm()
+    prevCountdown = undefined
     screenEl.classList.remove('hidden')
     mountLobby(screenEl, state)
   } else if (state.phase === 'ended') {
@@ -242,19 +266,35 @@ function onStateUpdate(state: GameState) {
       destroyHUD()
       gameActive = false
     }
+    sound.stopAmbient()
+    sound.play('whistle')
+    if (myTeam) {
+      const oppTeam = myTeam === 'home' ? 'away' : 'home'
+      if (state.score[myTeam] > state.score[oppTeam]) sound.play('victory')
+    }
     screenEl.classList.remove('hidden')
     mountResult(screenEl, state)
   } else if (state.phase === 'halftime') {
+    sound.stopAmbient()
+    sound.play('whistle')
     showHalftimeOverlay(state)
   } else if (state.phase === 'playing') {
     screenEl.classList.add('hidden')
     if (!gameActive) {
-      playWhistle()
+      prevScore = { ...state.score }
+      sound.stopLobbyBgm()
+      sound.play('whistle')
+      sound.startAmbient()
+      sound.reset()
       if (myTeam) setRendererTeam(myTeam)  // restore after stopGame() cleared it
       startGame(state)
       if (myTeam) initHUD(myTeam)
       initInput()
       gameActive = true
+    } else {
+      // Second half kickoff
+      sound.play('whistle')
+      sound.startAmbient()
     }
   }
 }

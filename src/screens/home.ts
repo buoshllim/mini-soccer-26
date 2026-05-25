@@ -6,6 +6,10 @@ export function mountHome(el: HTMLElement) {
       <div style="font-size:56px;margin-bottom:8px">⚽</div>
       <h1 style="font-size:32px;font-weight:bold;margin-bottom:6px">Mini Soccer</h1>
       <p style="color:#888;margin-bottom:32px;font-size:14px">실시간 5 vs 5 카오스 축구</p>
+      <button id="btn-solo" style="display:block;width:220px;margin:0 auto 12px;padding:14px;font-size:16px;
+        border-radius:10px;background:#0ea5e9;color:#fff;border:none;cursor:pointer;font-weight:bold">
+        혼자 하기
+      </button>
       <button id="btn-create" style="display:block;width:220px;margin:0 auto 12px;padding:14px;font-size:16px;
         border-radius:10px;background:#6366f1;color:#fff;border:none;cursor:pointer;font-weight:bold">
         방 만들기
@@ -27,6 +31,11 @@ export function mountHome(el: HTMLElement) {
         📱 모바일은 가로 모드로 플레이하세요
       </p>
     </div>`
+
+  el.querySelector('#btn-solo')!.addEventListener('click', () => {
+    const code = String(Math.floor(Math.random() * 9000) + 1000)
+    joinRoom(code, true)
+  })
 
   el.querySelector('#btn-create')!.addEventListener('click', () => {
     const code = String(Math.floor(Math.random() * 9000) + 1000)

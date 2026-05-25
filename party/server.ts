@@ -19,6 +19,7 @@ export default class SoccerServer implements Party.Server {
   private assignments: Map<string, 'home' | 'away'> = new Map()
   private homeConnId: string | null = null
   private awayConnId: string | null = null
+  private soloMode = false
   private tickInterval: ReturnType<typeof setInterval> | null = null
   private countdownTimer: ReturnType<typeof setInterval> | null = null
   private lastTickAt = 0
@@ -65,14 +66,16 @@ export default class SoccerServer implements Party.Server {
 
   onClose(conn: Party.Connection) {
     if (this.homeConnId === conn.id) this.homeConnId = null
-    if (this.awayConnId === conn.id) this.awayConnId = null
+    if (!this.soloMode && this.awayConnId === conn.id) this.awayConnId = null
     this.assignments.delete(conn.id)
     this.inputs.delete(conn.id)
 
-    if (!this.homeConnId && !this.awayConnId) {
+    const bothGone = this.soloMode ? !this.homeConnId : (!this.homeConnId && !this.awayConnId)
+    if (bothGone) {
       if (this.tickInterval) { clearInterval(this.tickInterval); this.tickInterval = null }
       if (this.countdownTimer) { clearInterval(this.countdownTimer); this.countdownTimer = null }
       this.state = makeInitialState()
+      this.soloMode = false
     }
     this.broadcast({ type: 'state', state: this.state })
   }
@@ -90,8 +93,33 @@ export default class SoccerServer implements Party.Server {
       if (msg.color !== undefined) slot.color = msg.color
       if (msg.ready !== undefined) slot.ready = msg.ready
       if (msg.username !== undefined) slot.username = msg.username
+      // Solo: auto-assign AI a color different from home's pick
+      if (this.soloMode && team === 'home' && msg.color && this.state.lobby?.away) {
+        const colors = ['blue', 'red', 'green', 'yellow'] as const
+        this.state.lobby.away.color = colors.find(c => c !== msg.color) ?? 'red'
+      }
       this.broadcast({ type: 'state', state: this.state })
       this.checkBothReady()
+    } else if (msg.type === 'rematch') {
+      const prevHome = this.state.lobby?.home
+      const prevAway = this.state.lobby?.away
+      this.state = makeInitialState()
+      this.state.lobby = {
+        home: { color: null, ready: false, username: prevHome?.username },
+        away: this.soloMode
+          ? { color: null, ready: true, username: '🤖 AI' }
+          : { color: null, ready: false, username: prevAway?.username },
+      }
+      this.broadcast({ type: 'state', state: this.state })
+    } else if (msg.type === 'solo') {
+      this.soloMode = true
+      this.awayConnId = '__ai__'
+      this.assignments.set('__ai__', 'away')
+      this.state.lobby = {
+        home: this.state.lobby?.home ?? { color: null, ready: false },
+        away: { color: null, ready: true, username: '🤖 AI' },
+      }
+      this.broadcast({ type: 'state', state: this.state })
     }
   }
 
@@ -169,9 +197,10 @@ export default class SoccerServer implements Party.Server {
       }
     }
 
-    // 3. Field AI (non-controlled, non-GK)
+    // 3. Field AI (non-controlled, non-GK) — in solo mode, away team is fully AI
     for (const p of state.players) {
-      if (p.isControlled || p.role === 'gk' || p.stunTimer > 0) continue
+      if (p.role === 'gk' || p.stunTimer > 0) continue
+      if (p.isControlled && !(this.soloMode && p.team === 'away')) continue
       tickFieldAI(state, p)
     }
 
