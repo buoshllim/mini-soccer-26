@@ -15,6 +15,19 @@ class SoundManager {
   private prevStunTimers = new Map<string, number>()
   private prevBallOwnerId: string | null | undefined = undefined
   private prevBallVel = { x: 0, y: 0 }
+  private _bgmEnabled = true
+
+  isBgmEnabled(): boolean { return this._bgmEnabled }
+
+  toggleLobbyBgm(): boolean {
+    this._bgmEnabled = !this._bgmEnabled
+    if (this._bgmEnabled) {
+      this.lobbyAmbient?.play().catch(() => {})
+    } else {
+      this.lobbyAmbient?.pause()
+    }
+    return this._bgmEnabled
+  }
 
   preload(): void {
     const names = ['crowd-ambient', 'kick', 'goal-cheer', 'whistle', 'post-hit', 'fanfare',
@@ -55,7 +68,7 @@ class SoundManager {
   }
 
   startLobbyBgm(): void {
-    if (!this.lobbyAmbient || !this.lobbyAmbient.paused) return
+    if (!this._bgmEnabled || !this.lobbyAmbient || !this.lobbyAmbient.paused) return
     this.lobbyAmbient.play().catch(() => {})
   }
 

@@ -1,5 +1,6 @@
 import type { GameState, TeamColor } from '../types'
 import { sendLobby, getCurrentRoomId, goHome } from '../main'
+import { sound } from '../game/sound'
 
 let _color: TeamColor | null = null
 let _username = ''
@@ -58,6 +59,11 @@ export function mountLobby(el: HTMLElement, state?: GameState): void {
             font-family:monospace">${roomCode}</div>
         </div>
         <p style="color:#555;font-size:13px;margin:0">상대방 접속 대기 중...</p>
+        <button id="bgm-btn" style="width:100%;padding:10px;border-radius:8px;
+          background:rgba(255,255,255,0.07);color:${sound.isBgmEnabled() ? '#ccc' : '#555'};
+          border:1px solid ${sound.isBgmEnabled() ? '#555' : '#333'};font-size:13px;cursor:pointer;">
+          ${sound.isBgmEnabled() ? '🎵 BGM 켜짐' : '🔇 BGM 꺼짐'}
+        </button>
         <button id="leave-btn" style="width:100%;padding:10px;border-radius:8px;
           background:transparent;color:#555;border:1px solid #333;font-size:13px;cursor:pointer;">
           나가기
@@ -113,6 +119,7 @@ export function mountLobby(el: HTMLElement, state?: GameState): void {
       ${!myTeam && phase === 'lobby' ? `
         <p style="color:#888;font-size:14px">방이 가득 찼습니다</p>
       ` : ''}
+
     </div>
   `
 
@@ -161,5 +168,15 @@ export function mountLobby(el: HTMLElement, state?: GameState): void {
 
   el.querySelector('#leave-btn')?.addEventListener('click', () => {
     if (confirm('정말 나가시겠습니까?')) goHome()
+  })
+
+  el.querySelector('#bgm-btn')?.addEventListener('click', () => {
+    const on = sound.toggleLobbyBgm()
+    const btn = el.querySelector<HTMLButtonElement>('#bgm-btn')
+    if (btn) {
+      btn.textContent = on ? '🎵 BGM 켜짐' : '🔇 BGM 꺼짐'
+      btn.style.color = on ? '#ccc' : '#555'
+      btn.style.borderColor = on ? '#555' : '#333'
+    }
   })
 }
