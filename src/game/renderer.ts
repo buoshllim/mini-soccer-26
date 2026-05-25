@@ -33,7 +33,7 @@ export function startGame(initialState: GameState): void {
   const canvas = document.getElementById('three-canvas') as HTMLCanvasElement
 
   renderer = new THREE.WebGLRenderer({ canvas, antialias: true })
-  renderer.setPixelRatio(window.devicePixelRatio)
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
   renderer.setSize(window.innerWidth, window.innerHeight)
   renderer.shadowMap.enabled = true
 
