@@ -115,10 +115,10 @@ export function mountLobby(el: HTMLElement, state?: GameState): void {
         <p style="color:#888;font-size:14px">방이 가득 찼습니다</p>
       ` : ''}
 
-      <button id="bgm-btn" style="background:transparent;border:none;cursor:pointer;
-        font-size:30px;padding:6px;line-height:1;
-        opacity:${sound.isBgmEnabled() ? '1' : '0.3'};
-        filter:${sound.isBgmEnabled() ? 'none' : 'grayscale(1)'}">
+      <button id="bgm-btn" style="
+        background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.22);
+        border-radius:24px;cursor:pointer;font-size:22px;padding:8px 16px;line-height:1;
+        color:#fff;filter:${sound.isBgmEnabled() ? 'none' : 'grayscale(1) brightness(0.5)'}">
         ${sound.isBgmEnabled() ? '🎵' : '🔇'}
       </button>
     </div>
@@ -176,8 +176,7 @@ export function mountLobby(el: HTMLElement, state?: GameState): void {
     const btn = el.querySelector<HTMLButtonElement>('#bgm-btn')
     if (btn) {
       btn.textContent = on ? '🎵' : '🔇'
-      btn.style.opacity = on ? '1' : '0.3'
-      btn.style.filter = on ? 'none' : 'grayscale(1)'
+      btn.style.filter = on ? 'none' : 'grayscale(1) brightness(0.5)'
     }
   })
 }
